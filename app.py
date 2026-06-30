@@ -60,11 +60,11 @@ def apply_fixed_service_schedule(calendar_data):
                         last_name = None
 
 # ────────────────────────────────────────────────────────
-# 🖨️ CSSによる通常表示の確保 ＆ 印刷時の表以外【完全抹消】
+# 🖨️ CSSによる通常表示の確保 ＆ 印刷時は表本体以外【完全消去】
 # ────────────────────────────────────────────────────────
 st.markdown("""
     <style>
-    /* Webブラウザ通常閲覧時の余白（見出しが見切れないように上に確保） */
+    /* Webブラウザ通常閲覧時の余白 */
     div[data-testid="stMainBlockContainer"] { 
         max-width: 96% !important; 
         padding-top: 5rem !important; 
@@ -83,9 +83,8 @@ st.markdown("""
     .calendar-table td { container-type: inline-size !important; vertical-align: middle !important; padding: 4px 1px !important; height: 18px !important; }
     .staff-name-box { display: block !important; white-space: nowrap !important; overflow: visible !important; font-size: min(12px, 25cqw) !important; text-align: center; line-height: 1.2 !important; }
     
-    /* 🖨️ 印刷時専用スタイル（表と表タイトル以外を全消去） */
+    /* 🖨️ 印刷時専用スタイル（本当に「表本体」以外をすべて抹消） */
     @media print {
-        /* Streamlitのシステム要素、外枠、タブ、ボタン、アップローダー、あらゆるウィジェットを非表示 */
         header, footer, 
         div[data-testid="stSidebar"], 
         div[data-testid="stHeader"], 
@@ -95,6 +94,7 @@ st.markdown("""
         .hide-on-print, 
         div.row-widget, 
         .web-only-title,
+        .print-title-area, /* ← タイトルエリアも消去対象に追加 */
         iframe,
         div[data-testid="stElementContainer"]::has(button),
         div[data-testid="stVerticalBlock"] > div:has(button) {
@@ -106,17 +106,16 @@ st.markdown("""
         
         @page {
             size: A3 landscape;
-            margin: 4mm 5mm 4mm 5mm !important; /* 上下余白を狭めて1枚収めを死守 */
+            margin: 4mm 5mm 4mm 5mm !important;
         }
         
-        /* 印刷時のみ上部パディングを完全にゼロにする */
         div[data-testid="stMainBlockContainer"], .main, .block-container {
             max-width: 100% !important;
             padding-top: 0px !important;
             margin-top: 0px !important;
         }
 
-        /* 週間表のマス高さを固定して1枚に綺麗に収める */
+        /* 週間表のマス高さを固定 */
         .week-print-table {
             width: 100% !important;
             height: auto !important;
@@ -141,7 +140,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 💻 Web画面用のシステムメインタイトル（印刷時は上のCSSで自動的に消えます）
+# 💻 Web画面用のシステムメインタイトル
 st.markdown("<h2 class='web-only-title' style='text-align: center; color: #333; margin-top: 0px; padding-top: 0px;'>📅 シフト配置確認システム</h2>", unsafe_allow_html=True)
 
 # ファイルアップローダー（印刷時は非表示）
@@ -344,7 +343,7 @@ if uploaded_file is not None:
                         st.markdown("<div class='no-print' style='height: 430px; background-color: #fdfdfd; border-radius:4px; opacity:0.3; border: 1px dashed #ccc;'></div>", unsafe_allow_html=True)
 
     # ────────────────────────────────────────────────────────
-    # タブ2：1週間表示（A3横1枚収め・表以外完全抹消版）
+    # タブ2：1週間表示（A3横1枚収め・【本当に表本体だけ】版）
     # ────────────────────────────────────────────────────────
     with view_mode[1]:
         if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
@@ -364,21 +363,22 @@ if uploaded_file is not None:
         st.write("---")
         st.markdown('</div>', unsafe_allow_html=True)
         
-        st.markdown("<div class='no-print' style='background:#fff3cd; padding:10px; border-radius:4px; margin-bottom:10px;'><b>💡 印刷のコツ:</b> 下のボタンを押し、印刷設定で必ず<b>「A3用紙・横向き・余白：なし（または最小）」</b>を選択してください。余計なメニューやボタンが全て消え、表だけが1枚に収まります。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='no-print' style='background:#fff3cd; padding:10px; border-radius:4px; margin-bottom:10px;'><b>💡 印刷のコツ:</b> 下のボタンを押し、印刷設定で必ず<b>「A3用紙・横向き・余白：なし（または最小）」</b>を選択してください。メニューも週タイトルも全て消え、純粋に【表だけ】が1枚に収まります。</div>", unsafe_allow_html=True)
         
         st.markdown('<div class="hide-on-print">', unsafe_allow_html=True)
         st.components.v1.html("""
-            <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ この週間シフト表を印刷する（A3横向き・1枚ぴったり設定）</button>
+            <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ この週間シフト表を印刷する（A3横向き・1枚表だけ設定）</button>
         """, height=50)
         st.markdown('</div>', unsafe_allow_html=True)
         
         start_d = st.session_state.current_week_idx * 7 + 1 - start_offset
         weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
         
-        # 印刷対象（表のタイトル＋表本体のみ）
-        h_sheet = []
-        h_sheet.append(f"<h3 style='text-align:center; margin: 0 0 6px 0; padding:0; font-family:sans-serif; font-size:18px;'>📅 {target_month}月 週間シフト配置表 ({weeks_list[st.session_state.current_week_idx]})</h3>")
+        # 💻 Web表示時だけ見えるタイトル（印刷時は上のCSSで非表示になります）
+        st.markdown(f"<div class='print-title-area'><h3 style='text-align:center; margin: 0 0 6px 0; padding:0; font-family:sans-serif; font-size:18px;'>📅 {target_month}月 週間シフト配置表 ({weeks_list[st.session_state.current_week_idx]})</h3></div>", unsafe_allow_html=True)
         
+        # 📊 ここから下が純粋な表本体
+        h_sheet = []
         h_sheet.append("<table class='calendar-table week-print-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
         h_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold;'>")
         h_sheet.append("<td class='time-col' style='width: 4.2%; padding: 4px 0;'>時間</td>")
