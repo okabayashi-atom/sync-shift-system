@@ -75,16 +75,22 @@ st.markdown("""
     .calendar-table td { container-type: inline-size !important; vertical-align: middle !important; padding: 4px 1px !important; height: 18px !important; }
     .staff-name-box { display: block !important; white-space: nowrap !important; overflow: visible !important; font-size: min(12px, 25cqw) !important; text-align: center; line-height: 1.2 !important; }
     
-    /* 🖨️ A3縦横1枚収め専用の魔法スタイル */
+    /* 🖨️ 印刷時専用スタイル（タイトルより上を完全に非表示にする） */
     @media print {
+        /* システムの全ヘッダー、アップローダー、タブメニュー、操作エリアを100%消去 */
         header, footer, div[data-testid="stSidebar"], div[data-testid="stHeader"], 
-        .stButton, div[data-testid="stSelectbox"], div[data-testid="stSlider"], 
-        div[data-testid="stFileUploader"], [data-testid="stTabsNav"], .no-print {
+        div[data-testid="stFileUploader"], [data-testid="stTabsNav"], .no-print,
+        .hide-on-print, div.row-widget {
             display: none !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
         }
+        /* メインコンテナの余白を完全にゼロにする */
         div[data-testid="stMainBlockContainer"] {
             max-width: 100% !important; padding: 0 !important; margin: 0 !important;
         }
+        /* 印刷ターゲットエリアのみを表示 */
         .print-target-area {
             display: block !important; width: 100% !important; background: white !important; padding: 0 !important; margin: 0 !important;
         }
@@ -98,7 +104,7 @@ st.markdown("""
         .week-print-table th, .week-print-table td {
             font-size: 10px !important; 
             padding: 1px 0px !important;
-            height: 14.5px !important; /* A3の縦幅に綺麗に収めるための限界高さ */
+            height: 14.5px !important; 
             line-height: 1.0 !important;
             border: 1px solid #000 !important;
         }
@@ -114,9 +120,14 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-st.markdown("<h2 style='text-align: center; color: #333;'>📅 シフト配置確認システム</h2>", unsafe_allow_html=True)
+# 印刷時にこの大見出しも消去するためクラスを追加
+st.markdown("<h2 class='hide-on-print' style='text-align: center; color: #333;'>📅 シフト配置確認システム</h2>", unsafe_allow_html=True)
 
-uploaded_file = st.file_uploader("シフトExcelファイルを選択してください", type=["xlsx", "xlsm"])
+# ファイルアップローダー部分をコンテナに包んで印刷時に非表示化
+with st.container():
+    st.markdown('<div class="hide-on-print">', unsafe_allow_html=True)
+    uploaded_file = st.file_uploader("シフトExcelファイルを選択してください", type=["xlsx", "xlsm"])
+    st.markdown('</div>', unsafe_allow_html=True)
 
 calendar_data = {}
 for d in range(1, 32):
@@ -134,7 +145,12 @@ if uploaded_file is not None:
     try:
         wb = openpyxl.load_workbook(uploaded_file, data_only=True)
         all_sheets = wb.sheetnames
+        
+        # シート選択ボックスも印刷時に非表示化
+        st.markdown('<div class="hide-on-print">', unsafe_allow_html=True)
         selected_sheet_name = st.selectbox("確認したいシフトのシートを選択してください 👇", options=all_sheets)
+        st.markdown('</div>', unsafe_allow_html=True)
+        
         ws_main = wb[selected_sheet_name]
 
         match = re.search(r'(\d+)月|\.(\d+)', selected_sheet_name)
@@ -208,7 +224,10 @@ if uploaded_file is not None:
                                     calendar_data[d_num][h][row_key][assigned_h] = "┃"
 
         apply_fixed_service_schedule(calendar_data)
+        
+        st.markdown('<div class="hide-on-print">', unsafe_allow_html=True)
         st.success(f"🎉 シート「{selected_sheet_name}」のデータを正常に解析しました。")
+        st.markdown('</div>', unsafe_allow_html=True)
     except Exception as e:
         st.error(f"Excelの読み込みエラー: {e}")
 
@@ -312,12 +331,14 @@ if uploaded_file is not None:
         st.markdown("</div>", unsafe_allow_html=True)
 
     # ────────────────────────────────────────────────────────
-    # タブ2：1週間表示（A3横1枚収め特化形式）
+    # タブ2：1週間表示（A3横1枚収め・余計な上部完全消去版）
     # ────────────────────────────────────────────────────────
     with view_mode[1]:
         if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
         weeks_list = ["第1週 (1日〜)", "第2週", "第3週", "第4週", "第5週", "第6週"]
         
+        # 週選択のコントロール部を印刷非表示コンテナで包む
+        st.markdown('<div class="hide-on-print">', unsafe_allow_html=True)
         b_col1, b_col2, b_col3 = st.columns([1, 3, 1])
         with b_col1:
             if st.button("← 前の週", use_container_width=True, key="p_wk_k"):
@@ -328,14 +349,13 @@ if uploaded_file is not None:
         with b_col2:
             week_option = st.selectbox("週選択", options=weeks_list, index=st.session_state.current_week_idx)
             st.session_state.current_week_idx = weeks_list.index(week_option)
-
         st.write("---")
+        st.markdown('</div>', unsafe_allow_html=True)
         
-        st.markdown("<div class='no-print' style='background:#fff3cd; padding:10px; border-radius:4px; margin-bottom:10px;'><b>💡 印刷のコツ:</b> 下のボタンを押し、印刷設定で必ず<b>「A3用紙・横向き・余白：なし（または最小）」</b>を選択してください。ぴったり1枚に収まります。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='no-print' style='background:#fff3cd; padding:10px; border-radius:4px; margin-bottom:10px;'><b>💡 印刷のコツ:</b> 下のボタンを押し、印刷設定で必ず<b>「A3用紙・横向き・余白：なし（または最小）」</b>を選択してください。余計なメニューが消えてぴったり1枚に収まります。</div>", unsafe_allow_html=True)
         st.components.v1.html("""
             <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ この週間シフト表を印刷する（A3横向き・1枚ぴったり設定）</button>
             <script>
-            // ブラウザにA3横向き印刷であることを強力に通知
             var style = parent.window.document.createElement('style');
             style.innerHTML = '@media print { @page { size: A3 landscape !important; margin: 4mm 4mm 4mm 4mm !important; } }';
             parent.window.document.head.appendChild(style);
@@ -345,11 +365,11 @@ if uploaded_file is not None:
         start_d = st.session_state.current_week_idx * 7 + 1 - start_offset
         weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
         
+        # ここから下が印刷の対象エリアになります（タイトルからスタート）
         st.markdown("<div class='print-target-area'>", unsafe_allow_html=True)
         h_sheet = []
-        h_sheet.append(f"<h3 style='text-align:center; margin: 0 0 4px 0; padding:0;'>📅 {target_month}月 週間シフト配置表 ({weeks_list[st.session_state.current_week_idx]})</h3>")
+        h_sheet.append(f"<h3 style='text-align:center; margin: 0 0 4px 0; padding:0; font-family:sans-serif;'>📅 {target_month}月 週間シフト配置表 ({weeks_list[st.session_state.current_week_idx]})</h3>")
         
-        # クラス名に `week-print-table` を付与し、印刷時に高さを引き締める
         h_sheet.append("<table class='calendar-table week-print-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
         h_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold;'>")
         h_sheet.append("<td class='time-col' style='width: 4.2%; padding: 4px 0;'>時間</td>")
@@ -365,7 +385,6 @@ if uploaded_file is not None:
         
         h_sheet.append("<tr style='background-color: #f9f9f9; font-size: 9px; height: 14px;'><td style='font-weight:bold; padding:0;'>-</td>")
         for _ in range(7):
-            # 無駄を省くため、名前列とヘルパー列の比率を再調整（ヘルパー列をほんの少し広めに確保）
             h_sheet.append("<td style='width:1.8%; padding:0;'>サ1</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ1</td>")
             h_sheet.append("<td style='width:1.8%; padding:0;'>サ2</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ2</td>")
             h_sheet.append("<td style='width:1.8%; padding:0;'>サ3</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ3</td>")
@@ -401,6 +420,7 @@ if uploaded_file is not None:
     # タブ3：1日集中表示（詳細縦型形式）
     # ────────────────────────────────────────────────────────
     with view_mode[2]:
+        st.markdown('<div class="hide-on-print">', unsafe_allow_html=True)
         if 'current_day_val' not in st.session_state: st.session_state.current_day_val = 1
         d_col1, d_col2, d_col3 = st.columns([1, 3, 1])
         with d_col1:
@@ -411,8 +431,8 @@ if uploaded_file is not None:
                 if st.session_state.current_day_val < max_days: st.session_state.current_day_val += 1
         with d_col2:
             st.session_state.current_day_val = st.slider("日選択スライダー", min_value=1, max_value=max_days, value=st.session_state.current_day_val, key="d_sld")
-        
         st.write("---")
+        st.markdown('</div>', unsafe_allow_html=True)
         
         try:
             this_date = datetime.date(target_year, target_month, st.session_state.current_day_val)
