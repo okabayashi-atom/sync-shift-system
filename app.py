@@ -42,7 +42,7 @@ def apply_fixed_service_schedule(calendar_data):
     for d in range(1, 32):
         for h, m, name, col in schedules:
             row_key = "row1" if m == 0 else "row2"
-
+            calendar_data[d][h][row_key][col] = name
 # ────────────────────────────────────────────────────────
 # 🛠️ PDF印刷用のJavaScript関数とCSS
 # ────────────────────────────────────────────────────────
