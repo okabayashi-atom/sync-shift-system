@@ -1,4 +1,4 @@
-import streamlit as st
+code = """import streamlit as st
 import openpyxl
 import datetime
 import re
@@ -25,23 +25,29 @@ OUTPUT_FILE_NAME = "index.html"
 PUBLIC_URL = "http://test.atom-makoto.com/Flower_House/sync_shift_System/"
 
 # ────────────────────────────────────────────────────────
-# 🛠️ 印刷・PDF閲覧・ダウンロードを完全に制御する超強力なJavaScript & CSS
+# 🛠️ PDF閲覧・ダウンロード時に、カラー・罫線・縦棒を完全に維持するCSS & JS
 # ────────────────────────────────────────────────────────
-st.html("""
+st.html(\"\"\"
 <script>
 function printTabSection(containerId, orientation) {
     // 既存の印刷用動的スタイルがあれば削除
     var oldStyle = document.getElementById('dynamic-print-style');
     if (oldStyle) oldStyle.remove();
 
-    // 印刷時に指定されたコンテナだけを全展開し、A4の向きを固定するCSSを注入
+    // 印刷・PDF保存時に、背景色や罫線を100%維持し、A4サイズ・向きを完全制御するCSSを注入
     var style = document.createElement('style');
     style.id = 'dynamic-print-style';
     style.innerHTML = `
         @media print {
-            /* Streamlitのヘッダー、サイドバー、ボタン、プルダウン等を全て完全非表示 */
+            /* ⚠️ 【超重要】PDF保存時も背景色（ピンク・黄色）や罫線を絶対に消さない設定 */
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            /* Streamlitのメニューやボタン、PDF制御パネル自体をPDF内では非表示にする */
             header, footer, div[data-testid="stSidebar"], div[data-testid="stHeader"], 
-            .stButton, div[data-testid="stSelectbox"], div[data-testid="stSlider"], .no-print {
+            .stButton, div[data-testid="stSelectbox"], div[data-testid="stSlider"], .no-print, .pdf-control-panel {
                 display: none !important;
             }
             
@@ -55,7 +61,7 @@ function printTabSection(containerId, orientation) {
                 display: block !important;
             }
             
-            /* 印刷対象のコンテナだけを画面最前面に引き出す */
+            /* 印刷対象のタブコンテナだけを全面に引き出す */
             #${containerId} {
                 display: block !important;
                 width: 100% !important;
@@ -68,35 +74,43 @@ function printTabSection(containerId, orientation) {
                 z-index: 9999999;
             }
             
-            /* カレンダー内のスクロール制限を解除し、PDF化の際に下まで全て展開する */
+            /* カレンダー内のスクロール制限を解除し、下まで全て展開してPDF化する */
             #${containerId} .scrollable-container {
                 height: auto !important;
                 overflow: visible !important;
             }
             
-            /* A4用紙の向きと余白を完全に固定 (landscape=横, portrait=縦) */
+            /* A4用紙の向きと余白を完全に固定 (landscape=横向き, portrait=縦向き) */
             @page {
                 size: A4 ${orientation};
-                margin: 8mm 6mm;
+                margin: 6mm 5mm;
             }
             
             /* 表が途中の変な位置でページ切れするのを防止 */
             .calendar-table {
                 page-break-inside: avoid !important;
+                border-collapse: collapse !important;
+            }
+            
+            /* PDF内でも縦棒が隙間なく綺麗に繋がるようにセルを強制密着 */
+            .calendar-table td {
+                padding-top: 0px !important;
+                padding-bottom: 0px !important;
+                line-height: 1.0 !important;
             }
         }
     `;
     document.head.appendChild(style);
     
-    // わずかな待ち時間を入てからブラウザの印刷・PDFプレビューを起動
+    // プレビュー画面（＝PDF閲覧・ダウンロードの場所）を起動
     setTimeout(function() {
         window.print();
     }, 250);
 }
 </script>
-""")
+\"\"\")
 
-st.markdown("""
+st.markdown(\"\"\"
     <style>
     /* 画面全体の横幅を限界まで引き伸ばす */
     div[data-testid="stMainBlockContainer"] {
@@ -107,6 +121,17 @@ st.markdown("""
     /* プルダウンのガタつき調整 */
     div[data-testid="stSelectbox"] label { display: none !important; }
     div[data-testid="stSelectbox"] { margin-top: 0px !important; padding-top: 0px !important; }
+    
+    /* 縦棒（┃）を画面上でも隙間なく一本に繋げるためのテーブル設定 */
+    .calendar-table {
+        border-collapse: collapse !important;
+    }
+    .calendar-table td {
+        padding-top: 0px !important;
+        padding-bottom: 0px !important;
+        line-height: 1.0 !important;
+        height: 18px !important;
+    }
     /* 文字サイズ自動フィット */
     .staff-name-box {
         display: block !important;
@@ -114,10 +139,41 @@ st.markdown("""
         overflow: visible !important;
         font-size: min(12px, 24cqw) !important;
         text-align: center !important;
-        line-height: 1.2 !important;
+        line-height: 1.0 !important;
+    }
+    
+    /* 📥 PDF保存・閲覧用の専用コントロールパネルUI */
+    .pdf-control-panel {
+        background-color: #f0f7ff; 
+        border: 1px solid #1c83e1; 
+        padding: 12px 15px; 
+        border-radius: 6px; 
+        margin-bottom: 15px;
+    }
+    .pdf-btn-blue {
+        width: 100%; 
+        height: 42px; 
+        background-color: #1c83e1; 
+        color: white; 
+        border: none; 
+        border-radius: 4px; 
+        cursor: pointer; 
+        font-size: 14px; 
+        font-weight: bold;
+    }
+    .pdf-btn-green {
+        width: 100%; 
+        height: 42px; 
+        background-color: #4CAF50; 
+        color: white; 
+        border: none; 
+        border-radius: 4px; 
+        cursor: pointer; 
+        font-size: 14px; 
+        font-weight: bold;
     }
     </style>
-""", unsafe_allow_html=True)
+\"\"\", unsafe_allow_html=True)
 
 st.markdown("<h1 style='text-align: center; color: #333;'>📅 シフト配置確認カレンダー</h1>", unsafe_allow_html=True)
 
@@ -229,11 +285,14 @@ def wrap_name(val, h_type):
     return f"<span class='staff-name-box'>{val}</span>"
 
 # ─── 🖨️ 縦棒（┃）が上下綺麗につながる1日分テーブル生成関数 ───
-def make_html_table_with_time(day_schedule, font_size="11px", padding="3px"):
+def make_html_table_with_time(day_schedule, font_size="11px", padding="0px", is_large=False):
     html = []
+    td_p_style = "padding: 0px 2px !important;" if not is_large else f"padding: {padding} 2px !important;"
+    line_h_style = "line-height: 1.0 !important;" if not is_large else "line-height: 1.2 !important;"
+    
     html.append(f"<table class='calendar-table' style='border-collapse: collapse; text-align: center; font-size: {font_size}; font-family: sans-serif; width: 100%; table-layout: fixed; border: 1px solid #333;'>")
     html.append("<tr style='background-color: #f0f0f0; font-weight: bold; border-bottom: 2px solid #333;'>")
-    html.append(f"<td style='border: 1px solid #ccc; width: 24%; padding: {padding}; font-size: 9px;'>時間</td>")
+    html.append(f"<td style='border: 1px solid #ccc; width: 24%; padding: 4px 0; font-size: 9px;'>時間</td>")
     html.append("<td style='border: 1px solid #ccc; width: 12%; font-size: 9px;'>サ1</td><td style='border: 1px solid #ccc; width: 13%; font-weight: bold; font-size: 9px;'>へ1</td>")
     html.append("<td style='border: 1px solid #ccc; width: 12%; font-size: 9px;'>サ2</td><td style='border: 1px solid #ccc; width: 13%; font-weight: bold; font-size: 9px;'>へ2</td>")
     html.append("<td style='border: 1px solid #ccc; width: 12%; font-size: 9px;'>サ3</td><td style='border: 1px solid #ccc; width: 14%; font-weight: bold; font-size: 9px;'>へ3</td>")
@@ -250,8 +309,8 @@ def make_html_table_with_time(day_schedule, font_size="11px", padding="3px"):
         border_bottom_style = "border-bottom: 1px dashed #ddd;" if is_dash else "border-bottom: 1px solid #333;"
         if idx == len(rows_list) - 1: border_bottom_style = ""
             
-        html.append(f"<tr style='{border_bottom_style}'>")
-        html.append(f"<td style='border-right: 1px solid #333; border-left: 1px solid #ccc; background-color: #f9f9f9; font-weight: bold; padding: {padding} 0;'>{time_str}</td>")
+        html.append(f"<tr style='{border_bottom_style} height: 18px;'>")
+        html.append(f"<td style='border-right: 1px solid #333; border-left: 1px solid #ccc; background-color: #f9f9f9; font-weight: bold; padding: 2px 0;'>{time_str}</td>")
         
         for h_key in ["h1", "h2", "h3"]:
             val = row_data[h_key]
@@ -263,14 +322,18 @@ def make_html_table_with_time(day_schedule, font_size="11px", padding="3px"):
             top_border = "none" if (has_above and val != "") else "1px solid #ccc"
             bottom_border = "none" if (has_below and val != "") else "1px solid #ccc"
             
-            html.append(f"<td style='border-left: 1px solid #ccc; border-right: 1px solid #ccc; border-top: {top_border}; border-bottom: {bottom_border}; background-color: #ffffff;'></td>")
+            # 縦棒密着結合用のスタイルをインラインで強制
+            c_style = f"border-left: 1px solid #ccc; border-right: 1px solid #ccc; border-top: {top_border}; border-bottom: {bottom_border}; background-color: #ffffff; {td_p_style} {line_h_style}"
+            html.append(f"<td style='{c_style}'></td>")
+            
+            s_style = f"border-left: 1px solid #ccc; border-right: 1px solid #333; border-top: {top_border}; border-bottom: {bottom_border}; font-weight: bold; background-color: {bg_color}; {td_p_style} {line_h_style}"
             cell_content = wrap_name(val, h_key)
-            html.append(f"<td style='border-left: 1px solid #ccc; border-right: 1px solid #333; border-top: {top_border}; border-bottom: {bottom_border}; font-weight: bold; background-color: {bg_color};'>{cell_content}</td>")
+            html.append(f"<td style='{s_style}'>{cell_content}</td>")
         html.append("</tr>")
     html.append("</table>")
     return "".join(html)
 
-# ─── 💾 サーバー保存用HTML出力関数（旧形式の縦並びバックアップ） ───
+# ─── 💾 サーバー保存用HTML出力関数 ───
 def build_and_upload_static_html():
     html_src = f"<html><head><meta charset='utf-8'><title>{target_month}月シフト</title></head><body>"
     for d_pointer in range(1, max_days + 1):
@@ -291,20 +354,24 @@ if uploaded_file is not None:
             else: st.error(f"🔴 送信失敗: {err}")
 
 # ────────────────────────────────────────────────────────
-# 📊 表示切り替えタブ（各機能のPDF閲覧・ダウンロードを集約）
+# 📊 表示切り替えタブ（カレンダー・週間横並び・1日大判を完全復元）
 # ────────────────────────────────────────────────────────
 view_mode = st.tabs(["📊 1ヶ月表示（カレンダー形式）", "📅 1週間表示（A4横並び形式）", "🔍 1日集中表示（A4縦大判）", "🌐 公開ページ確認"])
 
 # ─── 🛠️ タブ1：1ヶ月カレンダー表示 ───
 with view_mode[0]:
-    # 🌟 [PDF閲覧・ダウンロードボタン] 🌟
-    st.html("""
-    <button onclick="printTabSection('month-view-container', 'landscape')" style="width:100%; height:45px; background-color:#1c83e1; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold; margin-bottom:15px;">
-        📄 1ヶ月分をカレンダー形式でPDF閲覧 / ダウンロードする（A4横向きに最適化）
-    </button>
-    """)
+    # 🌟 [PDF閲覧・ダウンロード専用の案内＆ボタンパネル]
+    st.html(f\"\"\"
+    <div class='pdf-control-panel'>
+        <h4 style='margin: 0 0 5px 0; color: #1c83e1; font-size: 14px;'>📄 1ヶ月分カレンダー形式のPDF閲覧・ダウンロード</h4>
+        <p style='margin: 0 0 10px 0; font-size: 12px; color: #555;'>下のボタンを押すと専用の<b>PDF閲覧・保存画面（印刷プレビュー）</b>が開きます。送信先の選択で「PDFとして保存」を選ぶことでダウンロードできます。（A4横向きに完全最適化され、縦棒も繋がります）</p>
+        <button onclick="printTabSection('month-view-container', 'landscape')" class='pdf-btn-blue'>
+            🔍 1ヶ月カレンダーをPDFで閲覧・ダウンロードする
+        </button>
+    </div>
+    \"\"\")
     
-    # 完全なHTMLグリッドカレンダーの構築
+    # グリッドカレンダーの構築
     month_html = []
     month_html.append("<div id='month-view-container'>")
     month_html.append("<table style='width:100%; border-collapse:collapse; table-layout:fixed; background-color:#fff; border:2px solid #333;'>")
@@ -325,9 +392,9 @@ with view_mode[0]:
             if start_offset <= current_cell_idx and day_pointer <= max_days:
                 month_html.append("<td style='border:1px solid #999; vertical-align:top; padding:4px; width:14.2%;'>")
                 month_html.append(f"<div style='font-weight:bold; font-size:12px; margin-bottom:3px;'>📅 {day_pointer}日</div>")
-                # 画面上は400pxスクロール、PDF時は全展開される仕掛け
+                # 画面上は400px、PDF時は全展開
                 month_html.append("<div class='scrollable-container' style='height:400px; overflow-y:auto; border:1px solid #eee; background-color:#fff;'>")
-                month_html.append(make_html_table_with_time(calendar_data[day_pointer], font_size="9px", padding="1px"))
+                month_html.append(make_html_table_with_time(calendar_data[day_pointer], font_size="9px", padding="0px", is_large=False))
                 month_html.append("</div></td>")
                 day_pointer += 1
             else:
@@ -353,12 +420,16 @@ with view_mode[1]:
         week_option = st.selectbox("週選択", options=weeks_list, index=st.session_state.current_week_idx)
         st.session_state.current_week_idx = weeks_list.index(week_option)
 
-    # 🌟 [PDF閲覧・ダウンロードボタン] 🌟
-    st.html("""
-    <button onclick="printTabSection('week-view-container', 'landscape')" style="width:100%; height:45px; background-color:#1c83e1; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold; margin-top:10px; margin-bottom:15px;">
-        📄 この週の横並び予定表をPDF閲覧 / ダウンロードする（A4横向きに最適化）
-    </button>
-    """)
+    # 🌟 [PDF閲覧・ダウンロード専用の案内＆ボタンパネル]
+    st.html(f\"\"\"
+    <div class='pdf-control-panel' style='margin-top:10px;'>
+        <h4 style='margin: 0 0 5px 0; color: #1c83e1; font-size: 14px;'>📄 選択中の週間横並び予定表のPDF閲覧・ダウンロード</h4>
+        <p style='margin: 0 0 10px 0; font-size: 12px; color: #555;'>下のボタンを押すと、この週の予定表が<b>A4横向きにぴったり収まったPDF閲覧・保存画面（プレビュー）</b>として開きます。「PDFとして保存」でダウンロードしてください。</p>
+        <button onclick="printTabSection('week-view-container', 'landscape')" class='pdf-btn-blue'>
+            🔍 この週間横並び表をPDFで閲覧・ダウンロードする
+        </button>
+    </div>
+    \"\"\")
 
     start_d = st.session_state.current_week_idx * 7 + 1 - start_offset
     
@@ -393,7 +464,7 @@ with view_mode[1]:
     for idx, (time_str, is_even) in enumerate(rows_list):
         bbs = "border-bottom:1px dashed #bbb;" if is_even else "border-bottom:1px solid #333;"
         if idx == len(rows_list) - 1: bbs = ""
-        week_html.append(f"<tr style='{bbs}'><td style='border-right:1px solid #333; border-left:1px solid #ccc; background-color:#f2f2f2; font-weight:bold; padding:4px 0;'>{time_str}</td>")
+        week_html.append(f"<tr style='{bbs} height: 18px;'><td style='border-right:1px solid #333; border-left:1px solid #ccc; background-color:#f2f2f2; font-weight:bold; padding:2px 0;'>{time_str}</td>")
         
         for day_of_week in range(7):
             current_d = start_d + day_of_week
@@ -418,8 +489,8 @@ with view_mode[1]:
                     tb = "none" if (has_above and val != "") else "1px solid #ccc"
                     bb = "none" if (has_below and val != "") else "1px solid #ccc"
                     
-                    week_html.append(f"<td style='border-left:1px solid #ccc; border-right:1px solid #ccc; border-top:{tb}; border-bottom:{bb}; background-color:#fff;'></td>")
-                    week_html.append(f"<td style='border-left:1px solid #ccc; border-right:1px solid #333; border-top:{tb}; border-bottom:{bb}; font-weight:bold; background-color:{bgc};'>{wrap_name(val, hk)}</td>")
+                    week_html.append(f"<td style='border-left:1px solid #ccc; border-right:1px solid #ccc; border-top:{tb}; border-bottom:{bb}; background-color:#fff; padding: 0px !important;'></td>")
+                    week_html.append(f"<td style='border-left:1px solid #ccc; border-right:1px solid #333; border-top:{tb}; border-bottom:{bb}; font-weight:bold; background-color:{bgc}; padding: 0px !important; line-height: 1.0 !important;'>{wrap_name(val, hk)}</td>")
             else:
                 week_html.append("<td colspan='6' style='border:1px solid #eee; background-color:#fdfdfd; opacity:0.1;'></td>")
         week_html.append("</tr>")
@@ -441,12 +512,16 @@ with view_mode[2]:
         select_day = st.slider("日選択", min_value=1, max_value=max_days, value=st.session_state.current_day_val)
         st.session_state.current_day_val = select_day
         
-    # 🌟 [PDF閲覧・ダウンロードボタン] 🌟
-    st.html("""
-    <button onclick="printTabSection('day-view-container', 'portrait')" style="width:100%; height:45px; background-color:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold; margin-top:10px; margin-bottom:15px;">
-        📄 この1日詳細シフトをPDF閲覧 / ダウンロードする（A4縦向き・大判に最適化）
-    </button>
-    """)
+    # 🌟 [PDF閲覧・ダウンロード専用の案内＆ボタンパネル]
+    st.html(f\"\"\"
+    <div class='pdf-control-panel' style='margin-top:10px;'>
+        <h4 style='margin: 0 0 5px 0; color: #4CAF50; font-size: 14px;'>📄 選択中の1日集中予定表のPDF閲覧・ダウンロード</h4>
+        <p style='margin: 0 0 10px 0; font-size: 12px; color: #555;'>下のボタンを押すと、この日の詳細スケジュールが<b>A4縦向きに1枚おっきく拡大されたPDF閲覧・保存画面（プレビュー）</b>として開きます。「PDFとして保存」でダウンロードしてください。</p>
+        <button onclick="printTabSection('day-view-container', 'portrait')" class='pdf-btn-green'>
+            🔍 この1日スケジュールをPDFで閲覧・ダウンロードする
+        </button>
+    </div>
+    \"\"\")
 
     try:
         this_date = datetime.date(target_year, target_month, st.session_state.current_day_val)
@@ -455,13 +530,13 @@ with view_mode[2]:
         
     st.markdown(f"<h2 style='text-align: center; color: #1c83e1;'>🔍 {target_month}月 {st.session_state.current_day_val}日 ({wd_str}曜日)</h2>", unsafe_allow_html=True)
     
-    # 1日用は大判サイズ(font_size=15px, padding=8px)で大きく引き伸ばす
-    large_table_html = make_html_table_with_time(calendar_data[st.session_state.current_day_val], font_size="15px", padding="8px")
-    st.html(f"""
+    # 1日用は大判サイズ(font_size=15px, padding=6px, is_large=True)で大きく引き伸ばす
+    large_table_html = make_html_table_with_time(calendar_data[st.session_state.current_day_val], font_size="15px", padding="6px", is_large=True)
+    st.html(f\"\"\"
         <div id='day-view-container' style='max-width: 650px; margin: 0 auto; background-color: #ffffff; padding: 10px;'>
             {large_table_html}
         </div>
-    """)
+    \"\"\")
 
 
 # ─── 🛠️ タブ4：公開ページ確認 ───
@@ -470,3 +545,9 @@ with view_mode[3]:
     st.link_button("🔗 新しいタブで実際の公開ページを開く", PUBLIC_URL, use_container_width=True)
     st.write("---")
     st.components.v1.iframe(PUBLIC_URL, height=800, scrolling=True)
+"""
+
+with open("app.py", "w", encoding="utf-8") as f:
+    f.write(code)
+
+print("SUCCESS")
