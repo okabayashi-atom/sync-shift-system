@@ -25,10 +25,12 @@ OUTPUT_FILE_NAME = "index.html"
 PUBLIC_URL = "http://test.atom-makoto.com/Flower_House/sync_shift_System/"
 
 # ────────────────────────────────────────────────────────
-# 📌 サービス固定シフト反映関数（すべて「サ1 ＝ s1」列に指定）
+# 📌 サービス固定シフト反映関数（サ1・サ2の連動＋連続時の下側省略対応）
 # ────────────────────────────────────────────────────────
 def apply_fixed_service_schedule(calendar_data):
+    # (時, 分, 名前, 列)
     schedules = [
+        # ーーー サービス1 (s1) ーーー
         (7, 0, "越智f", "s1"), (7, 30, "八子mh", "s1"), (8, 0, "木村fh", "s1"),
         (10, 0, "赤尾b", "s1"), (10, 30, "赤尾b", "s1"),
         (11, 0, "越智b", "s1"), (11, 30, "越智b", "s1"),
@@ -37,12 +39,34 @@ def apply_fixed_service_schedule(calendar_data):
         (15, 0, "貝森f", "s1"),
         (17, 0, "越智f", "s1"), (17, 30, "貝森c", "s1"),
         (18, 30, "西井eh", "s1"), (19, 0, "照井e", "s1"), (19, 30, "八子ef", "s1"),
-        (20, 0, "越智e", "s1"), (20, 30, "貝森f", "s1"), (21, 0, "平野e", "s1")
+        (20, 0, "越智e", "s1"), (20, 30, "貝森f", "s1"), (21, 0, "平野e", "s1"),
+        
+        # ーーー サービス2 (s2) 新設！ ーーー
+        (14, 0, "山中sw", "s2"), (14, 30, "山中sw", "s2"),
+        (16, 0, "上吉川sw", "s2"), (16, 30, "上吉川sw", "s2"),
+        (17, 0, "木村", "s2")
     ]
+    
     for d in range(1, 32):
         for h, m, name, col in schedules:
             row_key = "row1" if m == 0 else "row2"
             calendar_data[d][h][row_key][col] = name
+            
+        # 💡 【新機能】サービス列（s1〜s3）で、同じ名前が連続している場合は下側を省略マーク「┃」にする
+        hours_seq = list(range(5, 24)) + [0]
+        for col_key in ["s1", "s2", "s3"]:
+            last_name = None
+            for hour in hours_seq:
+                for r_key in ["row1", "row2"]:
+                    current_name = calendar_data[d][hour][r_key][col_key]
+                    if current_name:
+                        # 直前と同じ名前なら省略マークに置き換える
+                        if current_name == last_name:
+                            calendar_data[d][hour][r_key][col_key] = "┃"
+                        else:
+                            last_name = current_name
+                    else:
+                        last_name = None # 空白が挟まったらリセット
 
 # ────────────────────────────────────────────────────────
 # 🛠️ PDF印刷用のJavaScript関数とCSS
@@ -309,10 +333,10 @@ if uploaded_file is not None:
                                 if not current_val or current_val == "┃":
                                     calendar_data[d_num][h][row_key][assigned_h] = "┃"
 
-        # 🚀 ここでサービス固定シフトを確実に反映
+        # 🚀 ここでサービス1・2の固定配置を反映＋自動省略処理
         apply_fixed_service_schedule(calendar_data)
 
-        st.success(f"🎉 シート「{selected_sheet_name}」のデータを読み込みました。サービス固定配置も完了しています！")
+        st.success(f"🎉 シート「{selected_sheet_name}」のデータを読み込みました。サ1・サ2固定配置＆連続省略も完了しています！")
     except Exception as e:
         st.error(f"Excelの読み込みエラー: {e}")
 
@@ -338,12 +362,14 @@ def get_bg(val, h_type):
     if h_type == "h1": return "#ffff00"
     return "#ffffff"
 
+# 💡 【新機能】全角カッコを自動で半角カッコにする
 def wrap_name(val, h_type):
     if not val: return ""
     if val in ["┃", "｜", "↓"]: return "┃"
-    return f"<span class='staff-name-box'>{val}</span>"
+    # 全角の「（ 」や「 ）」を半角に自動変換してはみ出し防止
+    cleaned_val = str(val).replace("（", "(").replace("）", ")")
+    return f"<span class='staff-name-box'>{cleaned_val}</span>"
 
-# 🛠️ 表示ロジック修正版：サ(s)列とへ(h)列を完全マッピング
 def make_html_table_with_time(day_schedule, font_size="11px", padding="3px", is_large=False):
     html = []
     td_p_style = "padding: 0px 2px !important;" if not is_large else f"padding: {padding} 2px !important;"
@@ -371,15 +397,12 @@ def make_html_table_with_time(day_schedule, font_size="11px", padding="3px", is_
         html.append(f"<tr style='{border_bottom_style} height: 18px;'>")
         html.append(f"<td style='border-right: 1px solid #333; border-left: 1px solid #ccc; background-color: #f9f9f9; font-weight: bold; padding: 2px 0;'>{time_str}</td>")
         
-        # サ(s)とへ(h)をペアで正確に書き出す
         for s_key, h_key in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
             val_s = row_data[s_key]
             val_h = row_data[h_key]
             bg_color_h = get_bg(val_h, h_key)
             
-            # サービス(サ)表示セル
             html.append(f"<td style='border-left: 1px solid #ccc; border-right: 1px solid #ccc; background-color: #ffffff; {td_p_style} {line_h_style}'>{wrap_name(val_s, '')}</td>")
-            # ヘルパー(へ)表示セル
             html.append(f"<td style='border-left: 1px solid #ccc; border-right: 1px solid #333; font-weight: bold; background-color: {bg_color_h}; {td_p_style} {line_h_style}'>{wrap_name(val_h, h_key)}</td>")
         html.append("</tr>")
         
@@ -566,7 +589,6 @@ with view_mode[1]:
                 rk = "row1" if time_str.endswith(":00") else "row2"
                 rd = ds[h_num][rk]
                 
-                # サ(s) と へ(h) を1週間表示タブでもペア結合して表示
                 for sk, hk in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
                     val_s = rd[sk]
                     val_h = rd[hk]
