@@ -75,11 +75,11 @@ def apply_fixed_service_schedule(calendar_data):
                         last_name = None
 
 # ────────────────────────────────────────────────────────
-# 🛠️ 印刷時に特定のエリアだけを抜き出して最大化する親スクリプト
+# 🛠️ 共通スタイル定義（印刷用CSSを親ウィンドウ側に常駐）
 # ────────────────────────────────────────────────────────
 st.html("""
 <script>
-function printTargetElement(containerId, pageSize, orientation) {
+window.setupPrintStyle = function(containerId, pageSize, orientation) {
     var oldStyle = document.getElementById('dynamic-print-style');
     if (oldStyle) oldStyle.remove();
 
@@ -140,8 +140,7 @@ function printTargetElement(containerId, pageSize, orientation) {
         }
     `;
     document.head.appendChild(style);
-    window.print();
-}
+};
 </script>
 """)
 
@@ -341,9 +340,8 @@ if uploaded_file is not None:
                 if success: st.success("🟢 保存完了！")
                 else: st.error(f"🔴 保存失敗: {err_msg}")
     with c2:
-        # 💡 画面全体印刷（Streamlitのセキュリティバグ回避版）
         components.html("""
-            <button onclick="parent.window.print()" style="width:100%; height:40px; background-color:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; font-weight:bold;">📄 この画面全体をPDF保存</button>
+            <button onclick="parent.window.print()" style="width:100%; height:40px; background-color:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; font-weight:bold; box-shadow: 0 1px 2px rgba(0,0,0,0.1);">📄 この画面全体をPDF保存</button>
         """, height=45)
 
 view_mode = st.tabs(["📊 1ヶ月表示（カレンダー）", "📅 1週間表示（時間軸スリム化）", "🔍 1日集中表示", "🌐 公開ページ確認"])
@@ -351,7 +349,7 @@ view_mode = st.tabs(["📊 1ヶ月表示（カレンダー）", "📅 1週間表
 # タブ1：1ヶ月表示
 with view_mode[0]:
     components.html("""
-        <button onclick="parent.printTargetElement('month-view-container', 'A4', 'landscape')" style="width:100%; height:42px; background-color:#1c83e1; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; font-weight:bold;">📄 1ヶ月分カレンダー形式でPDF閲覧 / ダウンロードする（A4横）</button>
+        <button onclick="parent.setupPrintStyle('month-view-container', 'A4', 'landscape'); parent.window.print();" style="width:100%; height:42px; background-color:#1c83e1; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; font-weight:bold;">📄 1ヶ月分カレンダー形式でPDF閲覧 / ダウンロードする（A4横）</button>
     """, height=48)
 
     st.html("<div id='month-view-container'>")
@@ -379,7 +377,7 @@ with view_mode[0]:
                     st.markdown("<div style='height: 430px; background-color: #fdfdfd; border-radius:4px; opacity:0.3; border: 1px dashed #ccc;'></div>", unsafe_allow_html=True)
     st.html("</div>")
 
-# タブ2：1週間表示（A3印刷対応・クリックバグ完全修正版）
+# タブ2：1週間表示（競合バグ完全修正版）
 with view_mode[1]:
     if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
     weeks_list = ["第1週 (1日〜)", "第2週", "第3週", "第4週", "第5週", "第6週"]
@@ -397,10 +395,10 @@ with view_mode[1]:
 
     st.write("---")
     
-    # 💡 1週間用 A3個別印刷ボタン（iframe隔離を突破する親ウィンドウ命令に変更）
+    # 💡 1週間表示専用：絶対に競合しない独立型A3印刷ボタン
     components.html("""
-        <button onclick="parent.printTargetElement('week-view-container', 'A3', 'landscape')" style="width:100%; height:45px; background-color:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.15);">🖨️ 選択中の「週」を【A3用紙・横向き】で印刷 / PDF保存する</button>
-    """, height=50)
+        <button onclick="parent.setupPrintStyle('week-view-container', 'A3', 'landscape'); parent.window.print();" style="width:100%; height:45px; background-color:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.15);">🖨️ 選択中の「週」を【A3用紙・横向き】で印刷 / PDF保存する</button>
+    """, height=52)
     
     start_d = st.session_state.current_week_idx * 7 + 1 - start_offset
     weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
@@ -468,7 +466,7 @@ with view_mode[2]:
     
     st.write("---")
     components.html("""
-        <button onclick="parent.printTargetElement('day-view-container', 'A4', 'portrait')" style="width:100%; height:42px; background-color:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; font-weight:bold;">📄 1日詳細スケジュールをPDFで閲覧 / ダウンロードする（A4縦大判）</button>
+        <button onclick="parent.setupPrintStyle('day-view-container', 'A4', 'portrait'); parent.window.print();" style="width:100%; height:42px; background-color:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; font-weight:bold;">📄 1日詳細スケジュールをPDFで閲覧 / ダウンロードする（A4縦大判）</button>
     """, height=48)
     
     try:
