@@ -60,7 +60,7 @@ def apply_fixed_service_schedule(calendar_data):
                         last_name = None
 
 # ────────────────────────────────────────────────────────
-# 🖨️ CSSによる通常表示の確保 ＆ 印刷時は表本体以外を【安全に非表示】
+# 🖨️ CSSによる通常表示の確保 ＆ 印刷時は表本体を【縦1枚に超圧縮】
 # ────────────────────────────────────────────────────────
 st.markdown("""
     <style>
@@ -83,9 +83,8 @@ st.markdown("""
     .calendar-table td { container-type: inline-size !important; vertical-align: middle !important; padding: 4px 1px !important; height: 18px !important; }
     .staff-name-box { display: block !important; white-space: nowrap !important; overflow: visible !important; font-size: min(12px, 25cqw) !important; text-align: center; line-height: 1.2 !important; }
     
-    /* 🖨️ 印刷専用：安全にシステム部品だけを隠す設定 */
+    /* 🖨️ 印刷専用：A3横向き1枚に絶対に収める極スリム設定 */
     @media print {
-        /* タイトル、アップローダー、タブのナビ、ボタン、Web用見出しをピンポイントで非表示 */
         header, 
         footer, 
         div[data-testid="stSidebar"], 
@@ -103,35 +102,38 @@ st.markdown("""
         
         @page {
             size: A3 landscape;
-            margin: 3mm 4mm 3mm 4mm !important;
+            margin: 2mm 3mm 2mm 3mm !important; /* 上下の余白をさらに限界まで詰める */
         }
         
-        /* 印刷時の余白を削って上詰めに配置 */
         div[data-testid="stMainBlockContainer"], .main, .block-container {
             max-width: 100% !important;
             padding: 0px !important;
             margin: 0px !important;
         }
 
-        /* 週間表の印刷スタイル */
+        /* 週間表を縦1枚に絶対収めるための高さ・余白・フォントの限界圧縮 */
         .week-print-table {
             width: 100% !important;
             height: auto !important;
-            border: 2px solid #000 !important;
+            border: 1.5px solid #000 !important;
+            page-break-inside: avoid !important; /* 途中でページが切れるのを防ぐ */
+        }
+        .week-print-table tr {
+            height: 11.5px !important; /* 縦幅を18pxから11.5pxまで超圧縮 */
         }
         .week-print-table th, .week-print-table td {
-            font-size: 10px !important; 
-            padding: 1px 0px !important;
-            height: 14.8px !important; 
+            font-size: 8.5px !important; /* 文字を小さくしてはみ出し防止 */
+            padding: 0px 0px !important;  /* 内側の余白を完全ゼロに */
+            height: 11.5px !important; 
             line-height: 1.0 !important;
             border: 1px solid #000 !important;
         }
         .week-print-table .time-col {
-            font-size: 9px !important;
+            font-size: 8px !important;
             font-weight: bold !important;
         }
         .week-print-table .staff-name-box {
-            font-size: 10px !important;
+            font-size: 8.5px !important;
             line-height: 1.0 !important;
         }
     }
@@ -329,7 +331,7 @@ if uploaded_file is not None:
                         st.markdown("<div style='height: 467px;'></div>", unsafe_allow_html=True)
 
     # ────────────────────────────────────────────────────────
-    # タブ2：1週間表示（★印刷時に【本当に表だけ】になる安全エリア）
+    # タブ2：1週間表示（★高さを超圧縮し、A3・1枚に強制ホールドするエリア）
     # ────────────────────────────────────────────────────────
     with view_mode[1]:
         if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
@@ -348,7 +350,7 @@ if uploaded_file is not None:
             st.session_state.current_week_idx = weeks_list.index(week_option)
         st.write("---")
         
-        st.markdown("<div style='background:#fff3cd; padding:10px; border-radius:4px; margin-bottom:10px;'><b>💡 週間表の印刷:</b> 下のボタンを押した後、右側の設定で必ず <b>「余白: なし」</b> を選択してください。本当に表本体のみがA3用紙1枚にカチッと収まります。</div>", unsafe_allow_html=True)
+        st.markdown("<div style='background:#fff3cd; padding:10px; border-radius:4px; margin-bottom:10px;'><b>💡 週間表の印刷:</b> 下のボタンを押した後、右側の設定で必ず <b>「余白: なし」</b> を選択してください。表本体のみがA3用紙1枚にきれいに収まります。</div>", unsafe_allow_html=True)
         st.markdown('</div>', unsafe_allow_html=True)
         
         st.components.v1.html("""
@@ -358,7 +360,7 @@ if uploaded_file is not None:
         start_d = st.session_state.current_week_idx * 7 + 1 - start_offset
         weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
         
-        # 💻 Web画面用の週タイトル（印刷時は上のCSS『h3』指定で完全に非表示になります）
+        # 💻 Web画面用の週タイトル
         st.markdown(f"<h3 style='text-align:center; margin: 10px 0;'>📅 {target_month}月 週間シフト配置表 ({weeks_list[st.session_state.current_week_idx]})</h3>", unsafe_allow_html=True)
         
         # 📊 表本体
