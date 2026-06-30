@@ -13,7 +13,7 @@ os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
 st.set_page_config(page_title="シフト配置カレンダー", layout="wide")
 
 # ────────────────────────────────────────────────────────
-# ⚙️ FTPサーバーの接続設定（テストアップ用アカウントに修正済）
+# ⚙️ FTPサーバーの接続設定
 # ────────────────────────────────────────────────────────
 FTP_HOST = "sv17062.xserver.jp"
 FTP_USER = "atom_test@test.atom-makoto.com"
@@ -21,11 +21,11 @@ FTP_PASS = "d7CWAQrw"
 FTP_DIR = "/Flower_House/sync_shift_System"
 OUTPUT_FILE_NAME = "index.html"
 
-# 🌐 テストサーバー用の公開URL（エックスサーバーのサブドメイン・フォルダ構造に対応）
+# 🌐 テストサーバー用の公開URL
 PUBLIC_URL = "http://test.atom-makoto.com/Flower_House/sync_shift_System/"
 
 # ────────────────────────────────────────────────────────
-# 📌 サービス固定シフト反映関数（サ1・サ2の連動＋連続時の下側省略対応）
+# 📌 サービス固定シフト反映関数（サ1〜サ3の完全マスターデータ）
 # ────────────────────────────────────────────────────────
 def apply_fixed_service_schedule(calendar_data):
     # (時, 分, 名前, 列)
@@ -41,10 +41,18 @@ def apply_fixed_service_schedule(calendar_data):
         (18, 30, "西井eh", "s1"), (19, 0, "照井e", "s1"), (19, 30, "八子ef", "s1"),
         (20, 0, "越智e", "s1"), (20, 30, "貝森f", "s1"), (21, 0, "平野e", "s1"),
         
-        # ーーー サービス2 (s2) 新設！ ーーー
+        # ーーー サービス2 (s2) ーーー
         (14, 0, "山中sw", "s2"), (14, 30, "山中sw", "s2"),
         (16, 0, "上吉川sw", "s2"), (16, 30, "上吉川sw", "s2"),
-        (17, 0, "木村", "s2")
+        (17, 0, "木村", "s2"),
+
+        # ーーー サービス3 (s3) 新設！ ーーー
+        (5, 0, "越智m", "s3"), (5, 30, "貝森m", "s3"), (6, 0, "照井mf", "s3"),
+        (7, 0, "佐藤m", "s3"), (7, 30, "平野m", "s3"), (8, 0, "貝森c", "s3"),
+        (10, 0, "貝森h", "s3"), (10, 30, "石田b", "s3"), (12, 0, "貝森c", "s3"),
+        (13, 0, "照井sw", "s3"), (13, 30, "照井sw", "s3"),
+        (17, 0, "平野sw", "s3"), (17, 30, "平野sw", "s3"),
+        (18, 0, "上吉川w", "s3"), (18, 30, "佐藤e", "s3")
     ]
     
     for d in range(1, 32):
@@ -52,7 +60,7 @@ def apply_fixed_service_schedule(calendar_data):
             row_key = "row1" if m == 0 else "row2"
             calendar_data[d][h][row_key][col] = name
             
-        # 💡 【新機能】サービス列（s1〜s3）で、同じ名前が連続している場合は下側を省略マーク「┃」にする
+        # 💡 サービス列（s1〜s3）で、同じ名前が連続している場合は下側を省略マーク「〃」にする
         hours_seq = list(range(5, 24)) + [0]
         for col_key in ["s1", "s2", "s3"]:
             last_name = None
@@ -60,9 +68,9 @@ def apply_fixed_service_schedule(calendar_data):
                 for r_key in ["row1", "row2"]:
                     current_name = calendar_data[d][hour][r_key][col_key]
                     if current_name:
-                        # 直前と同じ名前なら省略マークに置き換える
+                        # 直前と同じ名前なら「〃」に置き換える
                         if current_name == last_name:
-                            calendar_data[d][hour][r_key][col_key] = "┃"
+                            calendar_data[d][hour][r_key][col_key] = "〃"
                         else:
                             last_name = current_name
                     else:
@@ -97,7 +105,7 @@ function printTabSection(containerId, orientation) {
             div[data-testid="stAppViewContainer"] > div {
                 display: block !important;
             }
-            #${containerId} {
+            #\${containerId} {
                 display: block !important;
                 width: 100% !important;
                 height: auto !important;
@@ -108,12 +116,12 @@ function printTabSection(containerId, orientation) {
                 background: white;
                 z-index: 9999999;
             }
-            #${containerId} .scrollable-container {
+            #\${containerId} .scrollable-container {
                 height: auto !important;
                 overflow: visible !important;
             }
             @page {
-                size: A4 ${orientation};
+                size: A4 \${orientation};
                 margin: 5mm;
             }
             .calendar-table {
@@ -333,10 +341,10 @@ if uploaded_file is not None:
                                 if not current_val or current_val == "┃":
                                     calendar_data[d_num][h][row_key][assigned_h] = "┃"
 
-        # 🚀 ここでサービス1・2の固定配置を反映＋自動省略処理
+        # 🚀 固定配置の反映＆自動省略（サ1〜サ3対応）
         apply_fixed_service_schedule(calendar_data)
 
-        st.success(f"🎉 シート「{selected_sheet_name}」のデータを読み込みました。サ1・サ2固定配置＆連続省略も完了しています！")
+        st.success(f"🎉 シート「{selected_sheet_name}」のデータを読み込みました。全サービス固定配置が完了しています！")
     except Exception as e:
         st.error(f"Excelの読み込みエラー: {e}")
 
@@ -357,16 +365,15 @@ else:
 hours_sequence = list(range(5, 24)) + [0]
 
 def get_bg(val, h_type):
-    if not val or val in ["┃", "｜", "↓"]: return "#ffffff"
+    if not val or val in ["┃", "｜", "↓", "〃"]: return "#ffffff"
     if h_type == "h3": return "#ffc0cb"
     if h_type == "h1": return "#ffff00"
     return "#ffffff"
 
-# 💡 【新機能】全角カッコを自動で半角カッコにする
+# 💡 全角カッコを半角カッコに自動置換
 def wrap_name(val, h_type):
     if not val: return ""
-    if val in ["┃", "｜", "↓"]: return "┃"
-    # 全角の「（ 」や「 ）」を半角に自動変換してはみ出し防止
+    if val in ["┃", "｜", "↓", "〃"]: return str(val)
     cleaned_val = str(val).replace("（", "(").replace("）", ")")
     return f"<span class='staff-name-box'>{cleaned_val}</span>"
 
