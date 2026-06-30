@@ -60,11 +60,19 @@ def apply_fixed_service_schedule(calendar_data):
                         last_name = None
 
 # ────────────────────────────────────────────────────────
-# 🖨️ CSSによる画面レイアウトと印刷の最適化コントロール
+# 🖨️ CSSによる画面レイアウトと表示見切れの修正
 # ────────────────────────────────────────────────────────
 st.markdown("""
     <style>
-    div[data-testid="stMainBlockContainer"] { max-width: 96% !important; padding: 1rem 1.5rem !important; }
+    /* Web閲覧時の見切れ防止設定：上部にしっかり余白(6rem)を確保 */
+    div[data-testid="stMainBlockContainer"] { 
+        max-width: 96% !important; 
+        padding-top: 6rem !important; 
+        padding-bottom: 2rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
+    }
+    
     div[data-testid="stSelectbox"] label { display: none !important; }
     div[data-testid="stSelectbox"] { margin-top: 0px !important; padding-top: 0px !important; }
     div[data-testid="stSlider"] label { display: none !important; }
@@ -75,29 +83,26 @@ st.markdown("""
     .calendar-table td { container-type: inline-size !important; vertical-align: middle !important; padding: 4px 1px !important; height: 18px !important; }
     .staff-name-box { display: block !important; white-space: nowrap !important; overflow: visible !important; font-size: min(12px, 25cqw) !important; text-align: center; line-height: 1.2 !important; }
     
-    /* 🖨️ 印刷時専用スタイル */
+    /* 🖨️ 印刷時専用スタイル（印刷時は限界まで余白を詰め、操作メニューを隠す） */
     @media print {
-        /* 不要な操作メニューやヘッダーのみをピンポイントで非表示 */
         header, footer, div[data-testid="stSidebar"], div[data-testid="stHeader"], 
         div[data-testid="stFileUploader"], [data-testid="stTabsNav"], .no-print,
         .hide-on-print, div.row-widget {
             display: none !important;
         }
         
-        /* ページ全体の余白を設定 */
         @page {
             size: A3 landscape;
             margin: 6mm 5mm 5mm 5mm !important;
         }
         
-        /* 全体の配置崩れを防ぐため基本構造を維持しつつ余白を最適化 */
+        /* 印刷時のみ上部余白をリセットして1枚に収める */
         div[data-testid="stMainBlockContainer"] {
             max-width: 100% !important;
             padding-top: 0px !important;
             margin-top: 0px !important;
         }
 
-        /* 週間表示(A3向け)を高さを抑えて1枚に収める */
         .week-print-table {
             width: 100% !important;
             height: auto !important;
@@ -106,7 +111,7 @@ st.markdown("""
         .week-print-table th, .week-print-table td {
             font-size: 10px !important; 
             padding: 1px 0px !important;
-            height: 14.2px !important; /* 縦幅に確実に収まる高さ */
+            height: 14.2px !important; 
             line-height: 1.0 !important;
             border: 1px solid #000 !important;
         }
@@ -122,8 +127,8 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 💻 画面最上部のタイトル（印刷時もきれいに残るように設定）
-st.markdown("<h2 style='text-align: center; color: #333; margin-top:0px; padding-top:0px;'>📅 シフト配置確認システム</h2>", unsafe_allow_html=True)
+# 💻 Webで見た時も、印刷した時も、見切れずきれいに表示されるタイトル
+st.markdown("<h2 style='text-align: center; color: #333; margin-top: 0px; padding-top: 0px;'>📅 シフト配置確認システム</h2>", unsafe_allow_html=True)
 
 # ファイルアップローダー（印刷時は非表示）
 st.markdown('<div class="hide-on-print">', unsafe_allow_html=True)
@@ -325,7 +330,7 @@ if uploaded_file is not None:
                         st.markdown("<div class='no-print' style='height: 430px; background-color: #fdfdfd; border-radius:4px; opacity:0.3; border: 1px dashed #ccc;'></div>", unsafe_allow_html=True)
 
     # ────────────────────────────────────────────────────────
-    # タブ2：1週間表示（A3横1枚収め・修正安定版）
+    # タブ2：1週間表示（A3横1枚収め）
     # ────────────────────────────────────────────────────────
     with view_mode[1]:
         if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
@@ -353,7 +358,6 @@ if uploaded_file is not None:
         start_d = st.session_state.current_week_idx * 7 + 1 - start_offset
         weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
         
-        # タイトルと週間シフト表の組み立て
         h_sheet = []
         h_sheet.append(f"<h3 style='text-align:center; margin: 10px 0 5px 0; padding:0; font-family:sans-serif; font-size:18px;'>📅 {target_month}月 週間シフト配置表 ({weeks_list[st.session_state.current_week_idx]})</h3>")
         
