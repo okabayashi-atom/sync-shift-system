@@ -60,19 +60,15 @@ def apply_fixed_service_schedule(calendar_data):
                         last_name = None
 
 # ────────────────────────────────────────────────────────
-# 🖨️ CSSによる通常表示の確保 ＆ 印刷時は表本体を【縦1枚に超圧縮】
+# 🖨️ どのPCでも「規定の表だけ」を強制1枚印刷させる魔法のCSS
 # ────────────────────────────────────────────────────────
 st.markdown("""
     <style>
-    /* Webブラウザ通常閲覧時の画面調整 */
+    /* 💻 通常画面のスタイル定義 */
     div[data-testid="stMainBlockContainer"] { 
         max-width: 96% !important; 
-        padding-top: 4rem !important; 
-        padding-bottom: 2rem !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
+        padding: 4rem 1.5rem 2rem 1.5rem !important;
     }
-    
     div[data-testid="stSelectbox"] label { display: none !important; }
     div[data-testid="stSelectbox"] { margin-top: 0px !important; padding-top: 0px !important; }
     div[data-testid="stSlider"] label { display: none !important; }
@@ -83,67 +79,58 @@ st.markdown("""
     .calendar-table td { container-type: inline-size !important; vertical-align: middle !important; padding: 4px 1px !important; height: 18px !important; }
     .staff-name-box { display: block !important; white-space: nowrap !important; overflow: visible !important; font-size: min(12px, 25cqw) !important; text-align: center; line-height: 1.2 !important; }
     
-    /* 🖨️ 印刷専用：A3横向き1枚に絶対に収める極スリム設定 */
+    /* 🖨️ 印刷時：余計な要素を完全排除し、規定の表だけを縮小フィット */
     @media print {
-        header, 
-        footer, 
-        div[data-testid="stSidebar"], 
-        div[data-testid="stHeader"], 
-        div[data-testid="stFileUploader"], 
-        [data-testid="stTabsNav"], 
-        .hide-on-print,
-        h2, h3,
-        iframe {
-            display: none !important;
-            height: 0 !important;
+        /* 表（.print-target）以外のシステム要素、ヘッダー、ボタン等をすべて完全非表示に */
+        body * {
+            visibility: hidden !important;
+        }
+        
+        /* 印刷ターゲット（週間表のエリア）とその親要素だけをピンポイントで復活 */
+        .print-target, .print-target * {
+            visibility: visible !important;
+        }
+        
+        /* 印刷エリアの位置を画面の左上に強制固定 */
+        .print-target {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
+            /* 💡 A3横の縦幅に絶対収まるよう、表全体を印刷時のみ縮小ホールド(92%) */
+            transform: scale(0.92) !important;
+            transform-origin: top left !important;
+            page-break-inside: avoid !important;
         }
         
         @page {
             size: A3 landscape;
-            margin: 2mm 3mm 2mm 3mm !important; /* 上下の余白をさらに限界まで詰める */
+            margin: 0mm !important; /* ブラウザの余白設定に影響されないよう0に固定 */
         }
         
-        div[data-testid="stMainBlockContainer"], .main, .block-container {
-            max-width: 100% !important;
-            padding: 0px !important;
-            margin: 0px !important;
-        }
-
-        /* 週間表を縦1枚に絶対収めるための高さ・余白・フォントの限界圧縮 */
+        /* 枠線と文字サイズの微調整 */
         .week-print-table {
+            border: 2px solid #000 !important;
             width: 100% !important;
-            height: auto !important;
-            border: 1.5px solid #000 !important;
-            page-break-inside: avoid !important; /* 途中でページが切れるのを防ぐ */
-        }
-        .week-print-table tr {
-            height: 11.5px !important; /* 縦幅を18pxから11.5pxまで超圧縮 */
         }
         .week-print-table th, .week-print-table td {
-            font-size: 8.5px !important; /* 文字を小さくしてはみ出し防止 */
-            padding: 0px 0px !important;  /* 内側の余白を完全ゼロに */
-            height: 11.5px !important; 
+            font-size: 10px !important; 
+            padding: 1px 0px !important;
+            height: 15px !important; 
             line-height: 1.0 !important;
             border: 1px solid #000 !important;
         }
         .week-print-table .time-col {
-            font-size: 8px !important;
+            font-size: 9px !important;
             font-weight: bold !important;
-        }
-        .week-print-table .staff-name-box {
-            font-size: 8.5px !important;
-            line-height: 1.0 !important;
         }
     }
     </style>
 """, unsafe_allow_html=True)
 
-# 💻 Web画面用のシステムタイトル
-st.markdown("<h2 style='text-align: center; color: #333; margin-top: 0px; padding-top: 0px;'>📅 シフト配置確認システム</h2>", unsafe_allow_html=True)
-
-# ファイルアップローダー
+st.markdown("<h2 style='text-align: center; color: #333; margin-top: 0px;'>📅 シフト配置確認システム</h2>", unsafe_allow_html=True)
 uploaded_file = st.file_uploader("シフトExcelファイルを選択してください", type=["xlsx", "xlsm"])
 
 calendar_data = {}
@@ -305,7 +292,6 @@ if uploaded_file is not None:
     # タブ1：1ヶ月表示
     # ────────────────────────────────────────────────────────
     with view_mode[0]:
-        st.markdown("<div style='background:#e3f2fd; padding:10px; border-radius:4px; margin-bottom:10px;' class='hide-on-print'><b>💡 1ヶ月表示の印刷:</b> 設定で「A4横向き」を選んで印刷してください。</div>", unsafe_allow_html=True)
         st.components.v1.html('<button onclick="parent.window.print();" style="width:100%; height:42px; background-color:#1c83e1; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🖨️ 1ヶ月分印刷プレビュー</button>', height=45)
 
         weekdays = ["日", "月", "火", "水", "木", "金", "土"]
@@ -331,13 +317,12 @@ if uploaded_file is not None:
                         st.markdown("<div style='height: 467px;'></div>", unsafe_allow_html=True)
 
     # ────────────────────────────────────────────────────────
-    # タブ2：1週間表示（★高さを超圧縮し、A3・1枚に強制ホールドするエリア）
+    # タブ2：1週間表示（★ここが印刷ターゲット）
     # ────────────────────────────────────────────────────────
     with view_mode[1]:
         if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
         weeks_list = ["第1週 (1日〜)", "第2週", "第3週", "第4週", "第5週", "第6週"]
         
-        st.markdown('<div class="hide-on-print">', unsafe_allow_html=True)
         b_col1, b_col2, b_col3 = st.columns([1, 3, 1])
         with b_col1:
             if st.button("← 前の週", use_container_width=True, key="p_wk_k"):
@@ -350,21 +335,20 @@ if uploaded_file is not None:
             st.session_state.current_week_idx = weeks_list.index(week_option)
         st.write("---")
         
-        st.markdown("<div style='background:#fff3cd; padding:10px; border-radius:4px; margin-bottom:10px;'><b>💡 週間表の印刷:</b> 下のボタンを押した後、右側の設定で必ず <b>「余白: なし」</b> を選択してください。表本体のみがA3用紙1枚にきれいに収まります。</div>", unsafe_allow_html=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-        
         st.components.v1.html("""
-            <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ この週間シフト表を印刷（A3横向き・表だけ設定）</button>
+            <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ この週間シフト表を印刷（自動1枚収め設定）</button>
         """, height=50)
         
         start_d = st.session_state.current_week_idx * 7 + 1 - start_offset
         weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
         
-        # 💻 Web画面用の週タイトル
-        st.markdown(f"<h3 style='text-align:center; margin: 10px 0;'>📅 {target_month}月 週間シフト配置表 ({weeks_list[st.session_state.current_week_idx]})</h3>", unsafe_allow_html=True)
-        
-        # 📊 表本体
+        # 📊 表本体（『print-target』クラスで囲み、ここだけを印刷対象にします）
         h_sheet = []
+        h_sheet.append("<div class='print-target'>")
+        
+        # 印刷用のヘッダータイトルを表に内包させる
+        h_sheet.append(f"<h3 style='text-align:center; margin: 5px 0; font-family:sans-serif;'>📅 {target_month}月 週間シフト配置表 ({weeks_list[st.session_state.current_week_idx]})</h3>")
+        
         h_sheet.append("<table class='calendar-table week-print-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
         h_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold;'>")
         h_sheet.append("<td class='time-col' style='width: 4.2%; padding: 4px 0;'>時間</td>")
@@ -407,6 +391,7 @@ if uploaded_file is not None:
                     h_sheet.append("<td colspan='6' style='background-color: #fafafa; opacity:0.1;'></td>")
             h_sheet.append("</tr>")
         h_sheet.append("</table>")
+        h_sheet.append("</div>") # .print-target 閉じ
         
         st.html(f"<div style='border: 1px solid #999; background-color: #ffffff; border-radius: 6px; padding: 5px;'>{''.join(h_sheet)}</div>")
 
@@ -433,6 +418,6 @@ if uploaded_file is not None:
             
         st.components.v1.html('<button onclick="parent.window.print();" style="width:100%; height:42px; background-color:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🖨️ この日の詳細を印刷</button>', height=45)
 
-        st.markdown(f"<h2 style='text-align: center; color: #1c83e1;' class='hide-on-print'>🔍 {target_month}月 {st.session_state.current_day_val}日 ({wd_str}) の詳細</h2>", unsafe_allow_html=True)
+        st.markdown(f"<h2 style='text-align: center; color: #1c83e1;'>🔍 {target_month}月 {st.session_state.current_day_val}日 ({wd_str}) の詳細</h2>", unsafe_allow_html=True)
         day_table_html = make_html_table_with_time(calendar_data[st.session_state.current_day_val], font_size="15px", padding="6px", is_large=True)
         st.html(f"<div style='max-width: 650px; margin: 0 auto; border: 2px solid #1c83e1; background-color: #ffffff; border-radius: 8px; padding: 10px;'>{day_table_html}</div>")
