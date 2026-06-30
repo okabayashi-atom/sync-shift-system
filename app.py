@@ -75,39 +75,29 @@ st.markdown("""
     .calendar-table td { container-type: inline-size !important; vertical-align: middle !important; padding: 4px 1px !important; height: 18px !important; }
     .staff-name-box { display: block !important; white-space: nowrap !important; overflow: visible !important; font-size: min(12px, 25cqw) !important; text-align: center; line-height: 1.2 !important; }
     
-    /* 🖨️ 印刷時専用スタイル（上部を空白含めて100%根こそぎカット） */
+    /* 🖨️ 印刷時専用スタイル */
     @media print {
-        /* タイトルより上の全てのStreamlit公式パーツ・親階層を非表示＆高さをゼロに制限 */
+        /* 不要な操作メニューやヘッダーのみをピンポイントで非表示 */
         header, footer, div[data-testid="stSidebar"], div[data-testid="stHeader"], 
         div[data-testid="stFileUploader"], [data-testid="stTabsNav"], .no-print,
-        .hide-on-print, div.row-widget, div[data-testid="stBlock"] {
+        .hide-on-print, div.row-widget {
             display: none !important;
-            height: 0 !important;
-            margin: 0 !important;
-            padding: 0 !important;
         }
         
-        /* 根幹のメインコンテナに強制的にかかっている上部パディング(余白)を完全に破壊 */
-        div[data-testid="stMainBlockContainer"], .main, .block-container {
-            max-width: 100% !important; 
-            padding-top: 0px !important; 
-            padding-bottom: 0px !important;
-            padding-left: 0px !important;
-            padding-right: 0px !important;
-            margin-top: 0px !important;
-            margin-bottom: 0px !important;
+        /* ページ全体の余白を設定 */
+        @page {
+            size: A3 landscape;
+            margin: 6mm 5mm 5mm 5mm !important;
         }
         
-        /* 印刷ターゲットエリア（見出し以降）をページの最上部に固定 */
-        .print-target-area {
-            display: block !important; 
-            width: 100% !important; 
-            background: white !important; 
-            padding: 0px !important; 
+        /* 全体の配置崩れを防ぐため基本構造を維持しつつ余白を最適化 */
+        div[data-testid="stMainBlockContainer"] {
+            max-width: 100% !important;
+            padding-top: 0px !important;
             margin-top: 0px !important;
         }
-        
-        /* 週間表示(A3向け)の縦幅フィット調整 */
+
+        /* 週間表示(A3向け)を高さを抑えて1枚に収める */
         .week-print-table {
             width: 100% !important;
             height: auto !important;
@@ -116,7 +106,7 @@ st.markdown("""
         .week-print-table th, .week-print-table td {
             font-size: 10px !important; 
             padding: 1px 0px !important;
-            height: 14.8px !important; /* A3の縦に1枚で収まる限界の高さ */
+            height: 14.2px !important; /* 縦幅に確実に収まる高さ */
             line-height: 1.0 !important;
             border: 1px solid #000 !important;
         }
@@ -132,13 +122,13 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ─── 画面表示専用（印刷時は根こそぎ消えるエリア） ───
-st.markdown("<h2 class='hide-on-print' style='text-align: center; color: #333;'>📅 シフト配置確認システム</h2>", unsafe_allow_html=True)
+# 💻 画面最上部のタイトル（印刷時もきれいに残るように設定）
+st.markdown("<h2 style='text-align: center; color: #333; margin-top:0px; padding-top:0px;'>📅 シフト配置確認システム</h2>", unsafe_allow_html=True)
 
-with st.container():
-    st.markdown('<div class="hide-on-print">', unsafe_allow_html=True)
-    uploaded_file = st.file_uploader("シフトExcelファイルを選択してください", type=["xlsx", "xlsm"])
-    st.markdown('</div>', unsafe_allow_html=True)
+# ファイルアップローダー（印刷時は非表示）
+st.markdown('<div class="hide-on-print">', unsafe_allow_html=True)
+uploaded_file = st.file_uploader("シフトExcelファイルを選択してください", type=["xlsx", "xlsm"])
+st.markdown('</div>', unsafe_allow_html=True)
 
 calendar_data = {}
 for d in range(1, 32):
@@ -308,14 +298,9 @@ if uploaded_file is not None:
     with view_mode[0]:
         st.markdown("<div class='no-print' style='background:#e3f2fd; padding:10px; border-radius:4px; margin-bottom:10px;'><b>💡 印刷方法:</b> 下のボタンを押し、設定で<b>「A4横向き」</b>を選んで印刷してください。</div>", unsafe_allow_html=True)
         st.components.v1.html("""
-            <style>
-            @media print { @page { size: A4 landscape; margin: 5mm; } }
-            </style>
             <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#1c83e1; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ 1ヶ月分カレンダーの印刷プレビューを呼び出す（A4横向き）</button>
         """, height=50)
 
-        st.markdown("<div class='print-target-area'>", unsafe_allow_html=True)
-        
         weekdays = ["日", "月", "火", "水", "木", "金", "土"]
         header_cols = st.columns(7)
         for i, day in enumerate(weekdays):
@@ -338,10 +323,9 @@ if uploaded_file is not None:
                     else:
                         st.markdown("<div style='height: 27px; margin: 0 0 5px 0;'></div>", unsafe_allow_html=True)
                         st.markdown("<div class='no-print' style='height: 430px; background-color: #fdfdfd; border-radius:4px; opacity:0.3; border: 1px dashed #ccc;'></div>", unsafe_allow_html=True)
-        st.markdown("</div>", unsafe_allow_html=True)
 
     # ────────────────────────────────────────────────────────
-    # タブ2：1週間表示（A3横1枚収め・見出しより上を完全根こそぎシャットアウト版）
+    # タブ2：1週間表示（A3横1枚収め・修正安定版）
     # ────────────────────────────────────────────────────────
     with view_mode[1]:
         if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
@@ -361,23 +345,17 @@ if uploaded_file is not None:
         st.write("---")
         st.markdown('</div>', unsafe_allow_html=True)
         
-        st.markdown("<div class='no-print' style='background:#fff3cd; padding:10px; border-radius:4px; margin-bottom:10px;'><b>💡 印刷のコツ:</b> 下のボタンを押し、印刷設定で必ず<b>「A3用紙・横向き・余白：なし（または最小）」</b>を選択してください。見出しより上が完全に消えてぴったり収まります。</div>", unsafe_allow_html=True)
+        st.markdown("<div class='no-print' style='background:#fff3cd; padding:10px; border-radius:4px; margin-bottom:10px;'><b>💡 印刷のコツ:</b> 下のボタンを押し、印刷設定で必ず<b>「A3用紙・横向き・余白：なし（または最小）」</b>を選択してください。ぴったり1枚に美しく収まります。</div>", unsafe_allow_html=True)
         st.components.v1.html("""
             <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ この週間シフト表を印刷する（A3横向き・1枚ぴったり設定）</button>
-            <script>
-            var style = parent.window.document.createElement('style');
-            style.innerHTML = '@media print { @page { size: A3 landscape !important; margin: 0mm !important; } }';
-            parent.window.document.head.appendChild(style);
-            </script>
         """, height=50)
         
         start_d = st.session_state.current_week_idx * 7 + 1 - start_offset
         weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
         
-        # 🖨️ ここから下が印刷の対象エリア（余白をゼロにし、このタイトルから即スタート）
-        st.markdown("<div class='print-target-area'>", unsafe_allow_html=True)
+        # タイトルと週間シフト表の組み立て
         h_sheet = []
-        h_sheet.append(f"<h3 style='text-align:center; margin: 0 0 5px 0; padding:0; font-family:sans-serif; font-size:16px;'>📅 {target_month}月 週間シフト配置表 ({weeks_list[st.session_state.current_week_idx]})</h3>")
+        h_sheet.append(f"<h3 style='text-align:center; margin: 10px 0 5px 0; padding:0; font-family:sans-serif; font-size:18px;'>📅 {target_month}月 週間シフト配置表 ({weeks_list[st.session_state.current_week_idx]})</h3>")
         
         h_sheet.append("<table class='calendar-table week-print-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
         h_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold;'>")
@@ -422,8 +400,7 @@ if uploaded_file is not None:
             h_sheet.append("</tr>")
         h_sheet.append("</table>")
         
-        st.html(f"<div style='border: 2px solid #999; background-color: #ffffff; border-radius: 6px; padding: 5px;'>{''.join(h_sheet)}</div>")
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.html(f"<div style='border: 1px solid #999; background-color: #ffffff; border-radius: 6px; padding: 5px;'>{''.join(h_sheet)}</div>")
 
     # ────────────────────────────────────────────────────────
     # タブ3：1日集中表示（詳細縦型形式）
@@ -450,14 +427,9 @@ if uploaded_file is not None:
             
         st.markdown("<div class='no-print' style='background:#d4edda; padding:10px; border-radius:4px; margin-bottom:10px;'><b>💡 印刷方法:</b> 下のボタンを押し、設定で<b>「A4縦向き」</b>を選んで印刷してください。</div>", unsafe_allow_html=True)
         st.components.v1.html("""
-            <style>
-            @media print { @page { size: A4 portrait; margin: 8mm; } }
-            </style>
             <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ この日の詳細スケジュールを印刷する（A4縦向き）</button>
         """, height=50)
 
-        st.markdown("<div class='print-target-area'>", unsafe_allow_html=True)
         st.markdown(f"<h2 style='text-align: center; color: #1c83e1;'>🔍 {target_month}月 {st.session_state.current_day_val}日 ({wd_str}曜日) の詳細配置</h2>", unsafe_allow_html=True)
         day_table_html = make_html_table_with_time(calendar_data[st.session_state.current_day_val], font_size="15px", padding="6px", is_large=True)
         st.html(f"<div style='max-width: 650px; margin: 0 auto; border: 2px solid #1c83e1; background-color: #ffffff; border-radius: 8px; padding: 10px;'>{day_table_html}</div>")
-        st.markdown("</div>", unsafe_allow_html=True)
