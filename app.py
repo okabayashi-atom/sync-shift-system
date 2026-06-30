@@ -1,4 +1,4 @@
-code = """import streamlit as st
+import streamlit as st
 import openpyxl
 import datetime
 import re
@@ -18,37 +18,38 @@ st.set_page_config(page_title="シフト配置カレンダー", layout="wide")
 FTP_HOST = "sv17062.xserver.jp"
 FTP_USER = "atom_test@test.atom-makoto.com"
 FTP_PASS = "d7CWAQrw"
-FTP_DIR  = "/Flower_House/sync_shift_System"
+FTP_DIR = "/Flower_House/sync_shift_System"
 OUTPUT_FILE_NAME = "index.html"
 
 # 🌐 テストサーバー用の公開URL（エックスサーバーのサブドメイン・フォルダ構造に対応）
 PUBLIC_URL = "http://test.atom-makoto.com/Flower_House/sync_shift_System/"
+
 # ────────────────────────────────────────────────────────
-# サービス固定シフト反映関数（すべて「s1」列に指定）
+# 📌 サービス固定シフト反映関数（すべて「サ1 ＝ s1」列に指定）
 # ────────────────────────────────────────────────────────
 def apply_fixed_service_schedule(calendar_data):
     schedules = [
-        (7, 0, "越智f", "h1"), (7, 30, "八子mh", "h1"), (8, 0, "木村fh", "h1"),
-        (10, 0, "赤尾b", "h1"), (10, 30, "赤尾b", "h1"),
-        (11, 0, "越智b", "h1"), (11, 30, "越智b", "h1"),
-        (12, 0, "越智h", "h1"), (12, 30, "八子h", "h1"),
-        (14, 0, "越智sw", "h1"), (14, 30, "越智sw", "h1"),
-        (15, 0, "貝森f", "h1"),
-        (17, 0, "越智f", "h1"), (17, 30, "貝森c", "h1"),
-        (18, 30, "西井eh", "h1"), (19, 0, "照井e", "h1"), (19, 30, "八子ef", "h1"),
-        (20, 0, "越智e", "h1"), (20, 30, "貝森f", "h1"), (21, 0, "平野e", "h1")
+        (7, 0, "越智f", "s1"), (7, 30, "八子mh", "s1"), (8, 0, "木村fh", "s1"),
+        (10, 0, "赤尾b", "s1"), (10, 30, "赤尾b", "s1"),
+        (11, 0, "越智b", "s1"), (11, 30, "越智b", "s1"),
+        (12, 0, "越智h", "s1"), (12, 30, "八子h", "s1"),
+        (14, 0, "越智sw", "s1"), (14, 30, "越智sw", "s1"),
+        (15, 0, "貝森f", "s1"),
+        (17, 0, "越智f", "s1"), (17, 30, "貝森c", "s1"),
+        (18, 30, "西井eh", "s1"), (19, 0, "照井e", "s1"), (19, 30, "八子ef", "s1"),
+        (20, 0, "越智e", "s1"), (20, 30, "貝森f", "s1"), (21, 0, "平野e", "s1")
     ]
     for d in range(1, 32):
         for h, m, name, col in schedules:
             row_key = "row1" if m == 0 else "row2"
             calendar_data[d][h][row_key][col] = name
+
 # ────────────────────────────────────────────────────────
 # 🛠️ PDF印刷用のJavaScript関数とCSS
 # ────────────────────────────────────────────────────────
-st.html(\"\"\"
+st.html("""
 <script>
 function printTabSection(containerId, orientation) {
-    // 既存の印刷用スタイルがあれば削除
     var oldStyle = document.getElementById('dynamic-print-style');
     if (oldStyle) oldStyle.remove();
 
@@ -56,17 +57,14 @@ function printTabSection(containerId, orientation) {
     style.id = 'dynamic-print-style';
     style.innerHTML = `
         @media print {
-            /* 背景色や罫線を維持 */
             * {
                 -webkit-print-color-adjust: exact !important;
                 print-color-adjust: exact !important;
             }
-            /* StreamlitのUI要素を非表示 */
             header, footer, div[data-testid="stSidebar"], div[data-testid="stHeader"], 
             .stButton, div[data-testid="stSelectbox"], div[data-testid="stSlider"], .no-print, .pdf-control-panel {
                 display: none !important;
             }
-            /* コンテナの余白をなくす */
             div[data-testid="stMainBlockContainer"] {
                 max-width: 100% !important;
                 padding: 0 !important;
@@ -75,7 +73,6 @@ function printTabSection(containerId, orientation) {
             div[data-testid="stAppViewContainer"] > div {
                 display: block !important;
             }
-            /* 対象コンテナのみ表示 */
             #${containerId} {
                 display: block !important;
                 width: 100% !important;
@@ -87,22 +84,18 @@ function printTabSection(containerId, orientation) {
                 background: white;
                 z-index: 9999999;
             }
-            /* スクロールを解除 */
             #${containerId} .scrollable-container {
                 height: auto !important;
                 overflow: visible !important;
             }
-            /* 用紙サイズと向きの設定 */
             @page {
                 size: A4 ${orientation};
                 margin: 5mm;
             }
-            /* テーブルのページ区切り防止 */
             .calendar-table {
                 page-break-inside: avoid !important;
                 border-collapse: collapse !important;
             }
-            /* 縦棒を繋げるためのセル余白調整 */
             .calendar-table td {
                 padding-top: 0px !important;
                 padding-bottom: 0px !important;
@@ -113,25 +106,20 @@ function printTabSection(containerId, orientation) {
     `;
     document.head.appendChild(style);
     
-    // 印刷ダイアログの呼び出し
     setTimeout(function() {
         window.print();
     }, 250);
 }
 </script>
-\"\"\")
+""")
 
-# 等幅・改行なし・時間軸スリム化 ＆ 🖨️印刷・PDF保存時用のスタイル完全制御CSS
-st.markdown(\"\"\"
+st.markdown("""
     <style>
-    /* ─── 画面全体の横幅を限界まで引き伸ばす ─── */
     div[data-testid="stMainBlockContainer"] {
         max-width: 96% !important;
         padding-left: 1.5rem !important;
         padding-right: 1.5rem !important;
     }
-
-    /* ─── プルダウン(週選択)のガタつき調整 ─── */
     div[data-testid="stSelectbox"] label {
         display: none !important;
     }
@@ -145,8 +133,6 @@ st.markdown(\"\"\"
         display: flex !important;
         align-items: center !important;
     }
-
-    /* ─── スライダー(日選択)の高さ・位置同期 ─── */
     div[data-testid="stSlider"] label {
         display: none !important;
     }
@@ -154,8 +140,6 @@ st.markdown(\"\"\"
         margin-top: 0px !important;
         padding-top: 5px !important;
     }
-
-    /* ─── すべてのボタンのサイズ統一 ─── */
     .stButton > button {
         height: 40px !important;
         min-height: 40px !important;
@@ -163,32 +147,25 @@ st.markdown(\"\"\"
         padding-top: 0px !important;
         padding-bottom: 0px !important;
     }
-
-    /* ─── テーブルの完全等幅 ＆ 1列強制文字サイズ自動フィットCSS ─── */
     .calendar-table {
-        table-layout: fixed !important;       /* マスの幅を完全に均等固定 */
+        table-layout: fixed !important;
         width: 100% !important;
         border-collapse: collapse !important;
     }
-    
     .calendar-table td {
         container-type: inline-size !important; 
-        vertical-align: middle !important;     /* 上下中央揃え */
+        vertical-align: middle !important;
         padding: 4px 1px !important;
         height: 18px !important;
     }
-
-    /* 2行化を絶対禁止し、枠幅に合わせて文字を自動調整 */
     .staff-name-box {
         display: block !important;
-        white-space: nowrap !important;       /* 2行の折り返しを絶対に禁止 */
+        white-space: nowrap !important;
         overflow: visible !important;
-        font-size: min(12px, 25cqw) !important; /* 枠が広がった分、ベースの文字サイズを少し大きく(12px) */
+        font-size: min(12px, 25cqw) !important;
         text-align: center !important;
         line-height: 1.2 !important;
     }
-
-    /* ─── 🖨️ ブラウザの印刷・PDF保存機能を使った時に、余計なボタンやヘッダーを非表示にする設定 ─── */
     @media print {
         header, footer, div[data-testid="stSidebar"], .stButton, div[data-testid="stSlider"], div[data-testid="stSelectbox"], .no-print {
             display: none !important;
@@ -201,8 +178,6 @@ st.markdown(\"\"\"
             page-break-inside: avoid;
         }
     }
-    
-    /* PDFボタンのスタイル */
     .pdf-btn-blue {
         width: 100%; 
         height: 42px; 
@@ -228,14 +203,12 @@ st.markdown(\"\"\"
         margin-bottom: 10px;
     }
     </style>
-\"\"\", unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 st.markdown("<h1 style='text-align: center; color: #333;'>📅 シフト配置確認カレンダー</h1>", unsafe_allow_html=True)
 
-# Excelファイルのアップロード
 uploaded_file = st.file_uploader("シフトExcelファイルを選択してください", type=["xlsx", "xlsm"])
 
-# カレンダー表示用のデータ構造（5:00〜0:30）
 calendar_data = {}
 for d in range(1, 32):
     calendar_data[d] = {}
@@ -251,19 +224,15 @@ target_month = 6
 if uploaded_file is not None:
     try:
         wb = openpyxl.load_workbook(uploaded_file, data_only=True)
-        
-        # シート選択
         all_sheets = wb.sheetnames
         selected_sheet_name = st.selectbox("確認したいシフトのシートを選択してください 👇", options=all_sheets)
         ws_main = wb[selected_sheet_name]
 
-        # シート名から月を抽出
         match = re.search(r'(\d+)月|\.(\d+)', selected_sheet_name)
         if match:
             extracted_month = match.group(1) or match.group(2)
             target_month = int(extracted_month)
 
-        # 正確な月の最大日数を算出
         if target_month in [4, 6, 9, 11]:
             max_days = 30
         elif target_month == 2:
@@ -271,10 +240,8 @@ if uploaded_file is not None:
         else:
             max_days = 31
 
-        # ─── Excel原本解析ロジック ───
         for d_num in range(1, max_days + 1):
             target_col = 2 + (d_num - 1)
-            
             if target_col > ws_main.max_column:
                 break
 
@@ -282,7 +249,6 @@ if uploaded_file is not None:
                 cell_val = ws_main.cell(row=r_idx, column=target_col).value
                 if cell_val:
                     cell_str = str(cell_val).strip()
-                    
                     if not cell_str or cell_str in ["┃", "│", "↓", "｜", "〃"]:
                         continue
                     
@@ -336,7 +302,6 @@ if uploaded_file is not None:
                         
                         for idx, (h, m) in enumerate(time_slots):
                             row_key = "row1" if m == 0 else "row2"
-                            
                             if idx == 0 or idx == len(time_slots) - 1:
                                 calendar_data[d_num][h][row_key][assigned_h] = staff_name
                             else:
@@ -344,15 +309,15 @@ if uploaded_file is not None:
                                 if not current_val or current_val == "┃":
                                     calendar_data[d_num][h][row_key][assigned_h] = "┃"
 
-        st.success(f"🎉 シート「{selected_sheet_name}」のデータを読み込みました。時間列を狭めて名前枠を最大限広げました！")
-        # サービス固定シフトを反映
+        # 🚀 ここでサービス固定シフトを確実に反映
         apply_fixed_service_schedule(calendar_data)
+
+        st.success(f"🎉 シート「{selected_sheet_name}」のデータを読み込みました。サービス固定配置も完了しています！")
     except Exception as e:
         st.error(f"Excelの読み込みエラー: {e}")
 
 st.write("---")
 
-# 曜日・最大日数の計算
 try:
     start_offset = (datetime.date(target_year, target_month, 1).weekday() + 1) % 7
 except:
@@ -367,42 +332,20 @@ else:
 
 hours_sequence = list(range(5, 24)) + [0]
 
-# カラーリング共通関数
-# ────────────────────────────────────────────────────────
-# サービス固定シフト反映関数
-# ────────────────────────────────────────────────────────
-def apply_fixed_service_schedule(calendar_data):
-    schedules = [
-        (7, 0, "越智f", "h1"), (7, 30, "八子mh", "h2"), (8, 0, "木村fh", "h2"),
-        (10, 0, "赤尾b", "h2"), (10, 30, "赤尾b", "h2"),
-        (11, 0, "越智b", "h2"), (11, 30, "越智b", "h2"),
-        (12, 0, "越智h", "h3"), (12, 30, "八子h", "h3"),
-        (14, 0, "越智sw", "h3"), (14, 30, "越智sw", "h3"),
-        (15, 0, "貝森f", "h1"),
-        (17, 0, "越智f", "h1"), (17, 30, "貝森c", "h3"),
-        (18, 30, "西井eh", "h3"), (19, 0, "照井e", "h1"), (19, 30, "八子ef", "h1"),
-        (20, 0, "越智e", "h1"), (20, 30, "貝森f", "h1"), (21, 0, "平野e", "h1")
-    ]
-    for d in range(1, 32):
-        for h, m, name, col in schedules:
-            row_key = "row1" if m == 0 else "row2"
-            calendar_data[d][h][row_key][col] = name
 def get_bg(val, h_type):
     if not val or val in ["┃", "｜", "↓"]: return "#ffffff"
     if h_type == "h3": return "#ffc0cb"
     if h_type == "h1": return "#ffff00"
     return "#ffffff"
 
-# 名前フィット用スパン関数 (縦棒を返すように修正)
 def wrap_name(val, h_type):
     if not val: return ""
     if val in ["┃", "｜", "↓"]: return "┃"
     return f"<span class='staff-name-box'>{val}</span>"
 
-# 【1ヶ月・1日・公開保存用】HTMLテーブル生成関数 (縦棒が繋がるように修正)
+# 🛠️ 表示ロジック修正版：サ(s)列とへ(h)列を完全マッピング
 def make_html_table_with_time(day_schedule, font_size="11px", padding="3px", is_large=False):
     html = []
-    
     td_p_style = "padding: 0px 2px !important;" if not is_large else f"padding: {padding} 2px !important;"
     line_h_style = "line-height: 1.0 !important;" if not is_large else "line-height: 1.2 !important;"
 
@@ -428,33 +371,23 @@ def make_html_table_with_time(day_schedule, font_size="11px", padding="3px", is_
         html.append(f"<tr style='{border_bottom_style} height: 18px;'>")
         html.append(f"<td style='border-right: 1px solid #333; border-left: 1px solid #ccc; background-color: #f9f9f9; font-weight: bold; padding: 2px 0;'>{time_str}</td>")
         
-        for h_key in ["h1", "h2", "h3"]:
-            val = row_data[h_key]
-            bg_color = get_bg(val, h_key)
+        # サ(s)とへ(h)をペアで正確に書き出す
+        for s_key, h_key in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
+            val_s = row_data[s_key]
+            val_h = row_data[h_key]
+            bg_color_h = get_bg(val_h, h_key)
             
-            has_above = (idx > 0 and rows_list[idx-1][1][h_key] != "")
-            has_below = (idx < len(rows_list) - 1 and rows_list[idx+1][1][h_key] != "")
-            
-            top_border = "none" if (has_above and val != "") else "1px solid #ccc"
-            bottom_border = "none" if (has_below and val != "") else "1px solid #ccc"
-            
-            # 縦棒密着結合用のスタイルをインラインで強制
-            c_style = f"border-left: 1px solid #ccc; border-right: 1px solid #ccc; border-top: {top_border}; border-bottom: {bottom_border}; background-color: #ffffff; {td_p_style} {line_h_style}"
-            html.append(f"<td style='{c_style}'></td>")
-            
-            s_style = f"border-left: 1px solid #ccc; border-right: 1px solid #333; border-top: {top_border}; border-bottom: {bottom_border}; font-weight: bold; background-color: {bg_color}; {td_p_style} {line_h_style}"
-            cell_content = wrap_name(val, h_key)
-            html.append(f"<td style='{s_style}'>{cell_content}</td>")
+            # サービス(サ)表示セル
+            html.append(f"<td style='border-left: 1px solid #ccc; border-right: 1px solid #ccc; background-color: #ffffff; {td_p_style} {line_h_style}'>{wrap_name(val_s, '')}</td>")
+            # ヘルパー(へ)表示セル
+            html.append(f"<td style='border-left: 1px solid #ccc; border-right: 1px solid #333; font-weight: bold; background-color: {bg_color_h}; {td_p_style} {line_h_style}'>{wrap_name(val_h, h_key)}</td>")
         html.append("</tr>")
         
     html.append("</table>")
     return "".join(html)
 
-# ────────────────────────────────────────────────────────
-# 💾 公開先フォルダにHTMLとして自動で保存（FTP送信）する関数
-# ────────────────────────────────────────────────────────
 def build_and_upload_static_html():
-    html_src = f\"\"\"<!DOCTYPE html>
+    html_src = f"""<!DOCTYPE html>
     <html>
     <head>
         <meta charset="utf-8">
@@ -479,29 +412,27 @@ def build_and_upload_static_html():
             </div>
             <h1>📅 {target_month}月 週間予定表（シフト）</h1>
             <p style="text-align: center; color: #666; font-size: 12px;">最終更新日時: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}</p>
-    \"\"\"
+    """
     
-    # 全日程を縦並びのHTMLに変換して格納
     for d_pointer in range(1, max_days + 1):
         try:
             t_date = datetime.date(target_year, target_month, d_pointer)
             wd = ["月", "火", "水", "木", "金", "土", "日"][t_date.weekday()]
         except:
             wd = ""
-        html_src += f\"\"\"
+        html_src += f"""
         <div class="day-section">
             <h3 style="margin-top:0; color:#1c83e1;">📅 {target_month}月 {d_pointer}日 ({wd}曜日)</h3>
             {make_html_table_with_time(calendar_data[d_pointer], font_size='11px', padding='3px')}
         </div>
-        \"\"\"
+        """
         
-    html_src += \"\"\"
+    html_src += """
         </div>
     </body>
     </html>
-    \"\"\"
+    """
     
-    # 設定された接続情報を用いて、サーバー上の指定フォルダへ上書き送信
     try:
         with FTP(FTP_HOST, FTP_USER, FTP_PASS) as ftp:
             ftp.cwd(FTP_DIR)
@@ -511,8 +442,6 @@ def build_and_upload_static_html():
     except Exception as ex:
         return False, str(ex)
 
-
-# ─── アプリ最上部のアクションコントロールエリア ───
 if uploaded_file is not None:
     c1, c2 = st.columns([2, 1])
     with c1:
@@ -524,23 +453,19 @@ if uploaded_file is not None:
                 else:
                     st.error(f"🔴 保存に失敗しました。FTP設定内容を再度確認してください: {err_msg}")
     with c2:
-        # 手元のPC・スマホからその場で即座に印刷・PDF化を呼び出すボタン
         st.markdown('<button onclick="window.print()" style="width:100%; height:40px; background-color:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-size:14px; font-weight:bold;">📄 この画面全体をPDF保存</button>', unsafe_allow_html=True)
 
-
-# ─── 表示切り替えタブ（🌐 公開ページ確認タブ を末尾に追加） ───
 view_mode = st.tabs(["📊 1ヶ月表示（カレンダー）", "📅 1週間表示（時間軸スリム化）", "🔍 1日集中表示", "🌐 公開ページ確認"])
 
-# 🛠️ タブ1：1ヶ月表示
+# タブ1：1ヶ月表示
 with view_mode[0]:
-    # 🌟 PDF閲覧・ダウンロード用ボタン 🌟
-    st.html(\"\"\"
+    st.html("""
     <button onclick="printTabSection('month-view-container', 'landscape')" class="pdf-btn-blue">
         📄 1ヶ月分カレンダー形式でPDF閲覧 / ダウンロードする（A4横）
     </button>
-    \"\"\")
+    """)
 
-    st.html("<div id='month-view-container'>") # コンテナ開始
+    st.html("<div id='month-view-container'>")
 
     weekdays = ["日", "月", "火", "水", "木", "金", "土"]
     header_cols = st.columns(7)
@@ -565,11 +490,10 @@ with view_mode[0]:
                 else:
                     st.markdown("<div style='height: 27px; margin: 0 0 5px 0;'></div>", unsafe_allow_html=True)
                     st.markdown("<div style='height: 430px; background-color: #fdfdfd; border-radius:4px; opacity:0.3; border: 1px dashed #ccc;'></div>", unsafe_allow_html=True)
-                    
-    st.html("</div>") # コンテナ終了
+                        
+    st.html("</div>")
 
-
-# 🛠️ タブ2：1週間表示（時間軸を極限スリム化 ＆ 名前エリア拡大）
+# タブ2：1週間表示
 with view_mode[1]:
     if 'current_week_idx' not in st.session_state:
         st.session_state.current_week_idx = 0
@@ -591,12 +515,11 @@ with view_mode[1]:
 
     st.write("---")
     
-    # 🌟 PDF閲覧・ダウンロード用ボタン 🌟
-    st.html(\"\"\"
+    st.html("""
     <button onclick="printTabSection('week-view-container', 'landscape')" class="pdf-btn-blue">
         📄 1週間横並び形式でPDF閲覧 / ダウンロードする（A4横）
     </button>
-    \"\"\")
+    """)
     
     start_d = st.session_state.current_week_idx * 7 + 1 - start_offset
     weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
@@ -605,7 +528,6 @@ with view_mode[1]:
     html_sheet.append("<div id='week-view-container' style='overflow-x:auto;'>")
     html_sheet.append("<table class='calendar-table' style='width:100%; border-collapse:collapse; text-align:center; font-size:11px; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
     
-    # 1行目ヘッダー
     html_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold; position: sticky; top: 0; z-index: 10; border-bottom: 2px solid #ccc;'>")
     html_sheet.append("<td style='border: 1px solid #ccc; width: 2.5%; padding: 8px 0; font-size: 11px;'>時間</td>")
     
@@ -618,7 +540,6 @@ with view_mode[1]:
             html_sheet.append(f"<td colspan='6' style='border: 1px solid #ccc; color: #aaa; background-color: #fafafa; width: 13.9%;'>{weekdays_labels[day_of_week]} (外)</td>")
     html_sheet.append("</tr>")
     
-    # 2行目ヘッダー
     html_sheet.append("<tr style='background-color: #f9f9f9; font-size: 9px; border-bottom: 1px solid #ccc;'>")
     html_sheet.append("<td style='border: 1px solid #ccc;'>-</td>")
     for _ in range(7):
@@ -627,14 +548,13 @@ with view_mode[1]:
         html_sheet.append("<td style='border: 1px solid #eee; width: 1.4%;'>サ3</td><td style='border: 1px solid #ccc; font-weight: bold; width: 2.23%;'>へ3</td>")
     html_sheet.append("</tr>")
     
-    # 時間軸行を展開
     rows_list = []
     for hour in hours_sequence:
         rows_list.append((f"{hour}:00", True))
         rows_list.append(("0:30" if hour == 0 else f"{hour}:30", False))
         
     for idx, (time_str, is_even) in enumerate(rows_list):
-        bbs = "border-bottom:1px dashed #bbb;" if is_even else "border-bottom:1px solid #333;"
+        bbs = "border-bottom:1px solid #333;"
         if idx == len(rows_list) - 1: bbs = ""
         html_sheet.append(f"<tr style='{bbs} height: 18px;'><td style='border-right:1px solid #333; border-left:1px solid #ccc; background-color:#f2f2f2; font-weight:bold; padding:2px 0;'>{time_str}</td>")
         
@@ -646,33 +566,22 @@ with view_mode[1]:
                 rk = "row1" if time_str.endswith(":00") else "row2"
                 rd = ds[h_num][rk]
                 
-                for hk in ["h1", "h2", "h3"]:
-                    val = rd[hk]; bgc = get_bg(val, hk)
+                # サ(s) と へ(h) を1週間表示タブでもペア結合して表示
+                for sk, hk in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
+                    val_s = rd[sk]
+                    val_h = rd[hk]
+                    bgc = get_bg(val_h, hk)
                     
-                    has_above = False
-                    if idx > 0:
-                        pt, _ = rows_list[idx-1]; ph = int(pt.split(":")[0]); prk = "row1" if pt.endswith(":00") else "row2"
-                        if ds[ph][prk][hk] != "": has_above = True
-                    has_below = False
-                    if idx < len(rows_list) - 1:
-                        nt, _ = rows_list[idx+1]; nh = int(nt.split(":")[0]); nrk = "row1" if nt.endswith(":00") else "row2"
-                        if ds[nh][nrk][hk] != "": has_below = True
-                        
-                    tb = "none" if (has_above and val != "") else "1px solid #ccc"
-                    bb = "none" if (has_below and val != "") else "1px solid #ccc"
-                    
-                    html_sheet.append(f"<td style='border-left:1px solid #ccc; border-right:1px solid #ccc; border-top:{tb}; border-bottom:{bb}; background-color:#fff; padding: 0px !important;'></td>")
-                    html_sheet.append(f"<td style='border-left:1px solid #ccc; border-right:1px solid #333; border-top:{tb}; border-bottom:{bb}; font-weight:bold; background-color:{bgc}; padding: 0px !important; line-height: 1.0 !important;'>{wrap_name(val, hk)}</td>")
+                    html_sheet.append(f"<td style='border-left:1px solid #ccc; border-right:1px solid #ccc; background-color:#fff; padding: 0px !important;'>{wrap_name(val_s, '')}</td>")
+                    html_sheet.append(f"<td style='border-left:1px solid #ccc; border-right:1px solid #333; font-weight:bold; background-color:{bgc}; padding: 0px !important; line-height: 1.0 !important;'>{wrap_name(val_h, hk)}</td>")
             else:
                 html_sheet.append("<td colspan='6' style='border: 1px solid #eee; background-color: #fdfdfd; opacity:0.2;'></td>")
         html_sheet.append("</tr>")
         
     html_sheet.append("</table></div>")
-    
     st.html(f"<div style='border: 2px solid #999; background-color: #ffffff; border-radius: 6px; padding: 5px;'>{''.join(html_sheet)}</div>")
 
-
-# ─── 🛠️ タブ3：1日集中表示 ───
+# タブ3：1日集中表示
 with view_mode[2]:
     if 'current_day_val' not in st.session_state:
         st.session_state.current_day_val = 1
@@ -692,12 +601,11 @@ with view_mode[2]:
     
     st.write("---")
     
-    # 🌟 PDF閲覧・ダウンロード用ボタン 🌟
-    st.html(\"\"\"
+    st.html("""
     <button onclick="printTabSection('day-view-container', 'portrait')" class="pdf-btn-green">
         📄 1日詳細スケジュールをPDFで閲覧 / ダウンロードする（A4縦大判）
     </button>
-    \"\"\")
+    """)
     
     try:
         this_date = datetime.date(target_year, target_month, st.session_state.current_day_val)
@@ -708,29 +616,18 @@ with view_mode[2]:
     st.markdown(f"<h2 style='text-align: center; color: #1c83e1;'>🔍 {target_month}月 {st.session_state.current_day_val}日 ({wd_str}曜日) の詳細シフト</h2>", unsafe_allow_html=True)
     
     large_table_html = make_html_table_with_time(calendar_data[st.session_state.current_day_val], font_size="15px", padding="6px", is_large=True)
-    st.html(f\"\"\"
+    st.html(f"""
         <div id='day-view-container' style='max-width: 650px; margin: 0 auto; border: 2px solid #1c83e1; background-color: #ffffff; border-radius: 8px; padding: 10px;'>
             {large_table_html}
         </div>
-    \"\"\")
+    """)
 
-
-# ─── 🛠️ 新設タブ4：🌐 公開ページ確認 ───
+# タブ4：公開ページ確認
 with view_mode[3]:
     st.markdown("<h2 style='color: #1c83e1;'>🌐 テストアップ公開データの確認</h2>", unsafe_allow_html=True)
     st.write("確定送信ボタンを押した後、実際にインターネット上に書き出された予定表のページです。")
     
-    # リンクボタンを配置
     st.link_button("🔗 新しいタブで実際の公開ページを開く", PUBLIC_URL, use_container_width=True)
-    
     st.write("---")
-    st.caption("👇 アプリ内で簡易プレビュー（※環境によって表示されない場合は上のリンクボタンから開いてください）")
-    
-    # iframeを使用してStreamlit内にインラインでプレビュー表示
+    st.caption("👇 アプリ内で簡易プレビュー")
     st.components.v1.iframe(PUBLIC_URL, height=800, scrolling=True)
-"""
-
-with open("app.py", "w", encoding="utf-8") as f:
-    f.write(code)
-
-print("SUCCESS")
