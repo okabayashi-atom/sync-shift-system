@@ -28,7 +28,6 @@ PUBLIC_URL = "http://test.atom-makoto.com/Flower_House/sync_shift_System/"
 # 📌 サービス固定シフト反映関数（サ1〜サ3の完全マスターデータ）
 # ────────────────────────────────────────────────────────
 def apply_fixed_service_schedule(calendar_data):
-    # (時, 分, 名前, 列)
     schedules = [
         # ーーー サービス1 (s1) ーーー
         (7, 0, "越智f", "s1"), (7, 30, "八子mh", "s1"), (8, 0, "木村fh", "s1"),
@@ -46,7 +45,7 @@ def apply_fixed_service_schedule(calendar_data):
         (16, 0, "上吉川sw", "s2"), (16, 30, "上吉川sw", "s2"),
         (17, 0, "木村", "s2"),
 
-        # ーーー サービス3 (s3) 新設！ ーーー
+        # ーーー サービス3 (s3) ーーー
         (5, 0, "越智m", "s3"), (5, 30, "貝森m", "s3"), (6, 0, "照井mf", "s3"),
         (7, 0, "佐藤m", "s3"), (7, 30, "平野m", "s3"), (8, 0, "貝森c", "s3"),
         (10, 0, "貝森h", "s3"), (10, 30, "石田b", "s3"), (12, 0, "貝森c", "s3"),
@@ -60,7 +59,6 @@ def apply_fixed_service_schedule(calendar_data):
             row_key = "row1" if m == 0 else "row2"
             calendar_data[d][h][row_key][col] = name
             
-        # 💡 サービス列（s1〜s3）で、同じ名前が連続している場合は下側を省略マーク「〃」にする
         hours_seq = list(range(5, 24)) + [0]
         for col_key in ["s1", "s2", "s3"]:
             last_name = None
@@ -68,20 +66,19 @@ def apply_fixed_service_schedule(calendar_data):
                 for r_key in ["row1", "row2"]:
                     current_name = calendar_data[d][hour][r_key][col_key]
                     if current_name:
-                        # 直前と同じ名前なら「〃」に置き換える
                         if current_name == last_name:
                             calendar_data[d][hour][r_key][col_key] = "〃"
                         else:
                             last_name = current_name
                     else:
-                        last_name = None # 空白が挟まったらリセット
+                        last_name = None
 
 # ────────────────────────────────────────────────────────
-# 🛠️ PDF印刷用のJavaScript関数とCSS
+# 🛠️ A3・A4対応のダイナミックPDF印刷用スクリプト
 # ────────────────────────────────────────────────────────
 st.html("""
 <script>
-function printTabSection(containerId, orientation) {
+function printTabSection(containerId, pageSize, orientation) {
     var oldStyle = document.getElementById('dynamic-print-style');
     if (oldStyle) oldStyle.remove();
 
@@ -105,7 +102,7 @@ function printTabSection(containerId, orientation) {
             div[data-testid="stAppViewContainer"] > div {
                 display: block !important;
             }
-            #\${containerId} {
+            #${containerId} {
                 display: block !important;
                 width: 100% !important;
                 height: auto !important;
@@ -116,23 +113,28 @@ function printTabSection(containerId, orientation) {
                 background: white;
                 z-index: 9999999;
             }
-            #\${containerId} .scrollable-container {
+            #${containerId} .scrollable-container {
                 height: auto !important;
                 overflow: visible !important;
             }
             @page {
-                size: A4 \${orientation};
-                margin: 5mm;
+                size: ${pageSize} ${orientation};
+                margin: 6mm;
             }
             .calendar-table {
                 page-break-inside: avoid !important;
                 border-collapse: collapse !important;
+                width: 100% !important;
             }
             .calendar-table td {
-                padding-top: 0px !important;
-                padding-bottom: 0px !important;
-                line-height: 1.0 !important;
-                height: 18px !important;
+                padding-top: 1px !important;
+                padding-bottom: 1px !important;
+                line-height: 1.1 !important;
+                height: 20px !important;
+                font-size: ${pageSize === 'A3' ? '13px' : '10px'} !important;
+            }
+            .staff-name-box {
+                font-size: ${pageSize === 'A3' ? '13px' : '10px'} !important;
             }
         }
     `;
@@ -195,20 +197,21 @@ st.markdown("""
         white-space: nowrap !important;
         overflow: visible !important;
         font-size: min(12px, 25cqw) !important;
-        text-align: center !important;
+        text-align: center;
         line-height: 1.2 !important;
     }
-    @media print {
-        header, footer, div[data-testid="stSidebar"], .stButton, div[data-testid="stSlider"], div[data-testid="stSelectbox"], .no-print {
-            display: none !important;
-        }
-        div[data-testid="stMainBlockContainer"] {
-            max-width: 100% !important;
-            padding: 0 !important;
-        }
-        .calendar-table {
-            page-break-inside: avoid;
-        }
+    .pdf-btn-a3 {
+        width: 100%; 
+        height: 45px; 
+        background-color: #e67e22; 
+        color: white; 
+        border: none; 
+        border-radius: 4px; 
+        cursor: pointer; 
+        font-size: 15px; 
+        font-weight: bold;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.15);
     }
     .pdf-btn-blue {
         width: 100%; 
@@ -341,9 +344,7 @@ if uploaded_file is not None:
                                 if not current_val or current_val == "┃":
                                     calendar_data[d_num][h][row_key][assigned_h] = "┃"
 
-        # 🚀 固定配置の反映＆自動省略（サ1〜サ3対応）
         apply_fixed_service_schedule(calendar_data)
-
         st.success(f"🎉 シート「{selected_sheet_name}」のデータを読み込みました。全サービス固定配置が完了しています！")
     except Exception as e:
         st.error(f"Excelの読み込みエラー: {e}")
@@ -370,7 +371,6 @@ def get_bg(val, h_type):
     if h_type == "h1": return "#ffff00"
     return "#ffffff"
 
-# 💡 全角カッコを半角カッコに自動置換
 def wrap_name(val, h_type):
     if not val: return ""
     if val in ["┃", "｜", "↓", "〃"]: return str(val)
@@ -490,7 +490,7 @@ view_mode = st.tabs(["📊 1ヶ月表示（カレンダー）", "📅 1週間表
 # タブ1：1ヶ月表示
 with view_mode[0]:
     st.html("""
-    <button onclick="printTabSection('month-view-container', 'landscape')" class="pdf-btn-blue">
+    <button onclick="printTabSection('month-view-container', 'A4', 'landscape')" class="pdf-btn-blue">
         📄 1ヶ月分カレンダー形式でPDF閲覧 / ダウンロードする（A4横）
     </button>
     """)
@@ -523,7 +523,7 @@ with view_mode[0]:
                         
     st.html("</div>")
 
-# タブ2：1週間表示
+# タブ2：1週間表示（A3印刷対応）
 with view_mode[1]:
     if 'current_week_idx' not in st.session_state:
         st.session_state.current_week_idx = 0
@@ -545,9 +545,10 @@ with view_mode[1]:
 
     st.write("---")
     
+    # 💡 【新機能】A3横サイズの専用印刷ボタンを新設！
     st.html("""
-    <button onclick="printTabSection('week-view-container', 'landscape')" class="pdf-btn-blue">
-        📄 1週間横並び形式でPDF閲覧 / ダウンロードする（A4横）
+    <button onclick="printTabSection('week-view-container', 'A3', 'landscape')" class="pdf-btn-a3">
+        🖨️ 選択中の「週」を【A3用紙・横向き】で印刷 / PDF保存する
     </button>
     """)
     
@@ -631,7 +632,7 @@ with view_mode[2]:
     st.write("---")
     
     st.html("""
-    <button onclick="printTabSection('day-view-container', 'portrait')" class="pdf-btn-green">
+    <button onclick="printTabSection('day-view-container', 'A4', 'portrait')" class="pdf-btn-green">
         📄 1日詳細スケジュールをPDFで閲覧 / ダウンロードする（A4縦大判）
     </button>
     """)
