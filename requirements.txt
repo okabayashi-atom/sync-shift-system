@@ -1,2 +1,2 @@
-reportlab
-Pillow
+streamlit
+openpyxl
