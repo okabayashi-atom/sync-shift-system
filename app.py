@@ -59,6 +59,9 @@ def apply_fixed_service_schedule(calendar_data):
                     else:
                         last_name = None
 
+# ────────────────────────────────────────────────────────
+# 🖨️ CSSによる超高精度な印刷コントロール設定（用紙サイズ自動切替）
+# ────────────────────────────────────────────────────────
 st.markdown("""
     <style>
     div[data-testid="stMainBlockContainer"] { max-width: 96% !important; padding: 1rem 1.5rem !important; }
@@ -71,18 +74,25 @@ st.markdown("""
     .calendar-table td { container-type: inline-size !important; vertical-align: middle !important; padding: 4px 1px !important; height: 18px !important; }
     .staff-name-box { display: block !important; white-space: nowrap !important; overflow: visible !important; font-size: min(12px, 25cqw) !important; text-align: center; line-height: 1.2 !important; }
     
-    /* ブロック回避用HTMLボタンのデザイン調整 */
-    .print-anchor-btn {
-        display: block; width: 100%; height: 45px; line-height: 45px;
-        text-align: center; background-color: #e67e22; color: white !important;
-        text-decoration: none !important; font-weight: bold; font-size: 15px;
-        border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); margin-bottom: 15px;
+    /* 🖨️ 印刷時専用の魔法スタイル */
+    @media print {
+        /* 画面上の不要な要素（サイドバー、通常のタブ、ボタン、アップローダーなど）を全部消す */
+        header, footer, div[data-testid="stSidebar"], div[data-testid="stHeader"], 
+        .stButton, div[data-testid="stSelectbox"], div[data-testid="stSlider"], 
+        div[data-testid="stFileUploader"], [data-testid="stTabsNav"], .no-print {
+            display: none !important;
+        }
+        div[data-testid="stMainBlockContainer"] {
+            max-width: 100% !important; padding: 0 !important; margin: 0 !important;
+        }
+        /* 印刷対象のコンテナだけを綺麗に表示 */
+        .print-target-area {
+            display: block !important; width: 100% !important; background: white !important;
+        }
+        table { width: 100% !important; border-collapse: collapse !important; }
+        td { font-size: 9px !important; height: 17px !important; padding: 1px !important; border: 1px solid #000 !important; }
+        .staff-name-box { font-size: 9px !important; }
     }
-    .print-anchor-btn:hover { background-color: #d35400; }
-    .btn-month { background-color: #1c83e1; }
-    .btn-month:hover { background-color: #1565c0; }
-    .btn-day { background-color: #4CAF50; }
-    .btn-day:hover { background-color: #388E3C; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -210,7 +220,7 @@ def make_html_table_with_time(day_schedule, font_size="11px", padding="3px", is_
     td_p_style = "padding: 0px 2px !important;" if not is_large else f"padding: {padding} 2px !important;"
     line_h_style = "line-height: 1.0 !important;" if not is_large else "line-height: 1.2 !important;"
 
-    html.append(f"<table style='border-collapse: collapse; text-align: center; font-size: {font_size}; font-family: sans-serif; width: 100%; table-layout: fixed; border: 1px solid #333;'>")
+    html.append(f"<table class='calendar-table' style='border-collapse: collapse; text-align: center; font-size: {font_size}; font-family: sans-serif; width: 100%; table-layout: fixed; border: 1px solid #333;'>")
     html.append("<tr style='background-color: #f0f0f0; font-weight: bold; border-bottom: 2px solid #333;'>")
     html.append(f"<td style='border: 1px solid #ccc; width: 22%; padding: {padding}; font-size: 10px;'>時間</td>")
     html.append("<td style='border: 1px solid #ccc; width: 13%;'>サ1</td><td style='border: 1px solid #ccc; width: 13%;'>へ1</td>")
@@ -242,42 +252,6 @@ def make_html_table_with_time(day_schedule, font_size="11px", padding="3px", is_
     html.append("</table>")
     return "".join(html)
 
-# 💡 ブロックを100%回避する印刷用データスキーム生成関数
-def make_pure_html_link(html_content, label_text, css_class, page_size="A4", orientation="landscape", font_size="11px"):
-    escaped_content = html_content.replace("`", "\\`").replace("$", "\\$")
-    full_html = f"""
-    <a href="javascript:void(0);" class="print-anchor-btn {css_class}" onclick="
-        var w = window.open('', '_blank');
-        w.document.write(\`
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <meta charset='utf-8'>
-                <title>印刷プレビュー</title>
-                <style>
-                    body {{ margin: 0; padding: 0; background: white; font-family: sans-serif; }}
-                    * {{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }}
-                    @page {{ size: {page_size} {orientation}; margin: 5mm; }}
-                    table {{ width: 100%; border-collapse: collapse; text-align: center; table-layout: fixed; }}
-                    td {{ padding: 2px 1px; vertical-align: middle; height: 19px; font-size: {font_size}; border: 1px solid #333; }}
-                    .staff-name-box {{ display: block; white-space: nowrap; overflow: visible; text-align: center; font-size: {font_size}; line-height: 1.1; }}
-                </style>
-            </head>
-            <body>
-                {escaped_content}
-                <script>
-                    window.onload = function() {{
-                        setTimeout(function() {{ window.print(); }}, 300);
-                    }};
-                <\/script>
-            </body>
-            </html>
-        \`);
-        w.document.close();
-    ">{label_text}</a>
-    """
-    st.components.v1.html(full_html, height=52)
-
 if uploaded_file is not None:
     view_mode = st.tabs(["📊 1ヶ月表示（カレンダー）", "📅 1週間表示（時間軸スリム）", "🔍 1日集中表示"])
 
@@ -285,33 +259,17 @@ if uploaded_file is not None:
     # タブ1：1ヶ月表示（カレンダー形式）
     # ────────────────────────────────────────────────────────
     with view_mode[0]:
-        # カレンダー印刷用のHTML組み立て
-        m_html = [f"<h2 style='text-align:center;'>{target_month}月 シフト配置カレンダー</h2>"]
-        m_html.append("<table style='width:100%; border-collapse:collapse; table-layout:fixed; border:none;'>")
-        m_html.append("<tr style='background:#f0f0f0; font-weight:bold; height:30px;'>")
-        for w_day in ["日", "月", "火", "水", "木", "金", "土"]:
-            m_html.append(f"<td style='border:1px solid #333;'>{w_day}曜日</td>")
-        m_html.append("</tr>")
-        
-        d_ptr = 1
-        for wk in range(6):
-            if d_ptr > max_days: break
-            m_html.append("<tr style='vertical-align:top;'>")
-            for d_of_w in range(7):
-                cell_idx = wk * 7 + d_of_w
-                if start_offset <= cell_idx and d_ptr <= max_days:
-                    t_html = make_html_table_with_time(calendar_data[d_ptr], font_size="8px", padding="1px", is_large=False)
-                    m_html.append(f"<td style='border:1px solid #333; padding:3px; background:#fff;'><strong>{d_ptr}日</strong><div style='margin-top:3px;'>{t_html}</div></td>")
-                    d_ptr += 1
-                else:
-                    m_html.append("<td style='border:1px solid #333; background:#fafafa; opacity:0.3;'></td>")
-            m_html.append("</tr>")
-        m_html.append("</table>")
-        
-        # 100%安全な別タブ起動リンク
-        make_pure_html_link("".join(m_html), "🖨️ 1ヶ月分カレンダーを印刷する（A4横・ブロック回避版）", "btn-month", page_size="A4", orientation="landscape", font_size="8px")
+        st.markdown("<div class='no-print' style='background:#e3f2fd; padding:10px; border-radius:4px; margin-bottom:10px;'><b>💡 印刷方法:</b> 下の「🖨️ 画面全体の印刷プレビューを呼び出す」を押し、設定で<b>「白紙（A4横向き）」</b>を選んで印刷してください。</div>", unsafe_allow_html=True)
+        st.components.v1.html("""
+            <style>
+            @media print { @page { size: A4 landscape; margin: 5mm; } }
+            </style>
+            <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#1c83e1; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ 1ヶ月分カレンダーの印刷プレビューを呼び出す（A4横向き推奨）</button>
+        """, height=50)
 
-        # 画面上への描画
+        st.markdown("<div class='print-target-area'>", unsafe_allow_html=True)
+        st.markdown(f"<h2 class='only-print' style='text-align:center; display:none;'>{target_month}月 シフト配置カレンダー</h2>", unsafe_allow_html=True)
+        
         weekdays = ["日", "月", "火", "水", "木", "金", "土"]
         header_cols = st.columns(7)
         for i, day in enumerate(weekdays):
@@ -329,14 +287,15 @@ if uploaded_file is not None:
                     if start_offset <= current_cell_idx and day_pointer <= max_days:
                         st.markdown(f"<h4 style='margin: 0 0 5px 0; height: 27px; line-height: 27px;'><b>📅 {day_pointer}日</b></h4>", unsafe_allow_html=True)
                         table_html = make_html_table_with_time(calendar_data[day_pointer], font_size="9px", padding="1px", is_large=False)
-                        st.html(f"<div class='scrollable-container' style='border: 1px solid #999; height: 430px; overflow-y: auto; background-color: #ffffff; border-radius: 4px;'>{table_html}</div>")
+                        st.html(f"<div style='border: 1px solid #999; height: 430px; overflow-y: auto; background-color: #ffffff; border-radius: 4px;'>{table_html}</div>")
                         day_pointer += 1
                     else:
                         st.markdown("<div style='height: 27px; margin: 0 0 5px 0;'></div>", unsafe_allow_html=True)
-                        st.markdown("<div style='height: 430px; background-color: #fdfdfd; border-radius:4px; opacity:0.3; border: 1px dashed #ccc;'></div>", unsafe_allow_html=True)
+                        st.markdown("<div class='no-print' style='height: 430px; background-color: #fdfdfd; border-radius:4px; opacity:0.3; border: 1px dashed #ccc;'></div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # ────────────────────────────────────────────────────────
-    # タブ2：1週間表示（A3横大判印刷形式）
+    # タブ2：1週間表示（A3横大判形式）
     # ────────────────────────────────────────────────────────
     with view_mode[1]:
         if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
@@ -355,63 +314,65 @@ if uploaded_file is not None:
 
         st.write("---")
         
+        st.markdown("<div class='no-print' style='background:#fff3cd; padding:10px; border-radius:4px; margin-bottom:10px;'><b>💡 印刷方法:</b> 下のボタンを押し、設定で<b>「A3用紙・横向き」</b>を選んで印刷してください。</div>", unsafe_allow_html=True)
+        st.components.v1.html("""
+            <style>
+            @media print { @page { size: A3 landscape; margin: 5mm; } }
+            </style>
+            <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ 選択中の「この週」の印刷プレビューを呼び出す（A3横向き推奨）</button>
+        """, height=50)
+        
         start_d = st.session_state.current_week_idx * 7 + 1 - start_offset
         weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
         
-        # 週間表示用のHTML組み立て共通ロジック
-        def build_week_html_table():
-            h_sheet = []
-            h_sheet.append(f"<h2 style='text-align:center;'>📅 {target_month}月 週間シフト配置表 ({weeks_list[st.session_state.current_week_idx]})</h2>")
-            h_sheet.append("<table style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
-            h_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold;'>")
-            h_sheet.append("<td style='width: 3.5%; padding: 6px 0;'>時間</td>")
+        st.markdown("<div class='print-target-area'>", unsafe_allow_html=True)
+        h_sheet = []
+        h_sheet.append(f"<h2 style='text-align:center;'>📅 {target_month}月 週間シフト配置表 ({weeks_list[st.session_state.current_week_idx]})</h2>")
+        h_sheet.append("<table class='calendar-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
+        h_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold;'>")
+        h_sheet.append("<td style='width: 3.5%; padding: 6px 0;'>時間</td>")
+        
+        for d_o_w in range(7):
+            cur_d = start_d + d_o_w
+            c_color = '#ff4b4b' if d_o_w == 0 else '#1c83e1' if d_o_w == 6 else '#333333'
+            if 1 <= cur_d <= max_days:
+                h_sheet.append(f"<td colspan='6' style='color: {c_color}; font-size: 13px; width: 13.7%;'>{weekdays_labels[d_o_w]} ({cur_d}日)</td>")
+            else:
+                h_sheet.append(f"<td colspan='6' style='color: #aaa; background-color: #fafafa; width: 13.7%;'>{weekdays_labels[d_o_w]} (外)</td>")
+        h_sheet.append("</tr>")
+        
+        h_sheet.append("<tr style='background-color: #f9f9f9; font-size: 9px;'><td style='font-weight:bold;'>-</td>")
+        for _ in range(7):
+            h_sheet.append("<td style='width:1.4%;'>サ1</td><td style='font-weight:bold; width:2.1%; background:#fff3cd;'>へ1</td>")
+            h_sheet.append("<td style='width:1.4%;'>サ2</td><td style='font-weight:bold; width:2.1%; background:#fff3cd;'>へ2</td>")
+            h_sheet.append("<td style='width:1.4%;'>サ3</td><td style='font-weight:bold; width:2.1%; background:#fff3cd;'>へ3</td>")
+        h_sheet.append("</tr>")
+        
+        r_list = []
+        for hour in hours_sequence:
+            r_list.append((f"{hour}:00", True))
+            r_list.append(("0:30" if hour == 0 else f"{hour}:30", False))
+            
+        for idx, (t_str, is_even) in enumerate(r_list):
+            b_style = "border-bottom:1px solid #333;" if not is_even else "border-bottom:1px dashed #ccc;"
+            h_sheet.append(f"<tr style='{b_style} height:19px;'><td style='background-color:#f2f2f2; font-weight:bold;'>{t_str}</td>")
             
             for d_o_w in range(7):
                 cur_d = start_d + d_o_w
-                c_color = '#ff4b4b' if d_o_w == 0 else '#1c83e1' if d_o_w == 6 else '#333333'
                 if 1 <= cur_d <= max_days:
-                    h_sheet.append(f"<td colspan='6' style='color: {c_color}; font-size: 13px; width: 13.7%;'>{weekdays_labels[d_o_w]} ({cur_d}日)</td>")
+                    ds = calendar_data[cur_d]
+                    h_num = int(t_str.split(":")[0])
+                    rd = ds[h_num]["row1" if t_str.endswith(":00") else "row2"]
+                    for sk, hk in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
+                        h_sheet.append(f"<td style='background-color:#fff;'>{wrap_name(rd[sk], '')}</td>")
+                        h_sheet.append(f"<td style='font-weight:bold; background-color:{get_bg(rd[hk], hk)};'>{wrap_name(rd[hk], hk)}</td>")
                 else:
-                    h_sheet.append(f"<td colspan='6' style='color: #aaa; background-color: #fafafa; width: 13.7%;'>{weekdays_labels[d_o_w]} (外)</td>")
+                    h_sheet.append("<td colspan='6' style='background-color: #fafafa; opacity:0.1;'></td>")
             h_sheet.append("</tr>")
-            
-            h_sheet.append("<tr style='background-color: #f9f9f9; font-size: 9px;'><td style='font-weight:bold;'>-</td>")
-            for _ in range(7):
-                h_sheet.append("<td style='width:1.4%;'>サ1</td><td style='font-weight:bold; width:2.1%; background:#fff3cd;'>へ1</td>")
-                h_sheet.append("<td style='width:1.4%;'>サ2</td><td style='font-weight:bold; width:2.1%; background:#fff3cd;'>へ2</td>")
-                h_sheet.append("<td style='width:1.4%;'>サ3</td><td style='font-weight:bold; width:2.1%; background:#fff3cd;'>へ3</td>")
-            h_sheet.append("</tr>")
-            
-            r_list = []
-            for hour in hours_sequence:
-                r_list.append((f"{hour}:00", True))
-                r_list.append(("0:30" if hour == 0 else f"{hour}:30", False))
-                
-            for idx, (t_str, is_even) in enumerate(r_list):
-                b_style = "border-bottom:1px solid #333;" if not is_even else "border-bottom:1px dashed #ccc;"
-                h_sheet.append(f"<tr style='{b_style} height:19px;'><td style='background-color:#f2f2f2; font-weight:bold;'>{t_str}</td>")
-                
-                for d_o_w in range(7):
-                    cur_d = start_d + d_o_w
-                    if 1 <= cur_d <= max_days:
-                        ds = calendar_data[cur_d]
-                        h_num = int(t_str.split(":")[0])
-                        rd = ds[h_num]["row1" if t_str.endswith(":00") else "row2"]
-                        for sk, hk in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
-                            h_sheet.append(f"<td style='background-color:#fff;'>{wrap_name(rd[sk], '')}</td>")
-                            h_sheet.append(f"<td style='font-weight:bold; background-color:{get_bg(rd[hk], hk)};'>{wrap_name(rd[hk], hk)}</td>")
-                    else:
-                        h_sheet.append("<td colspan='6' style='background-color: #fafafa; opacity:0.1;'></td>")
-                h_sheet.append("</tr>")
-            h_sheet.append("</table>")
-            return "".join(h_sheet)
-
-        # 週表示用のブロック回避型リンク
-        week_html_content = build_week_html_table()
-        make_pure_html_link(week_html_content, "🖨️ この週間シフト表を印刷する（A3横・ブロック回避版）", "btn-week", page_size="A3", orientation="landscape", font_size="11px")
-
-        # 画面用描画
-        st.html(f"<div style='border: 2px solid #999; background-color: #ffffff; border-radius: 6px; padding: 5px;'>{week_html_content}</div>")
+        h_sheet.append("</table>")
+        
+        st.html(f"<div style='border: 2px solid #999; background-color: #ffffff; border-radius: 6px; padding: 5px;'>{''.join(h_sheet)}</div>")
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # ────────────────────────────────────────────────────────
     # タブ3：1日集中表示（詳細縦型形式）
@@ -435,15 +396,16 @@ if uploaded_file is not None:
             wd_str = ["月", "火", "水", "木", "金", "土", "日"][this_date.weekday()]
         except: wd_str = ""
             
-        day_table_html = make_html_table_with_time(calendar_data[st.session_state.current_day_val], font_size="14px", padding="5px", is_large=True)
-        day_content = f"""
-        <h2 style='text-align: center; color: #1c83e1;'>🔍 {target_month}月 {st.session_state.current_day_val}日 ({wd_str}曜日) シフト配置詳細</h2>
-        <div style='max-width: 680px; margin: 0 auto;'>{day_table_html}</div>
-        """
-        
-        # 1日用ブロック回避型リンク
-        make_pure_html_link(day_content, f"🖨️ {st.session_state.current_day_val}日の詳細を印刷する（A4縦・ブロック回避版）", "btn-day", page_size="A4", orientation="portrait", font_size="14px")
+        st.markdown("<div class='no-print' style='background:#d4edda; padding:10px; border-radius:4px; margin-bottom:10px;'><b>💡 印刷方法:</b> 下のボタンを押し、設定で<b>「A4用紙・縦向き」</b>を選んで印刷してください。</div>", unsafe_allow_html=True)
+        st.components.v1.html("""
+            <style>
+            @media print { @page { size: A4 portrait; margin: 8mm; } }
+            </style>
+            <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ この日の詳細スケジュールを印刷する（A4縦向き推奨）</button>
+        """, height=50)
 
-        # 画面用描画
+        st.markdown("<div class='print-target-area'>", unsafe_allow_html=True)
         st.markdown(f"<h2 style='text-align: center; color: #1c83e1;'>🔍 {target_month}月 {st.session_state.current_day_val}日 ({wd_str}曜日) の詳細配置</h2>", unsafe_allow_html=True)
+        day_table_html = make_html_table_with_time(calendar_data[st.session_state.current_day_val], font_size="15px", padding="6px", is_large=True)
         st.html(f"<div style='max-width: 650px; margin: 0 auto; border: 2px solid #1c83e1; background-color: #ffffff; border-radius: 8px; padding: 10px;'>{day_table_html}</div>")
+        st.markdown("</div>", unsafe_allow_html=True)
