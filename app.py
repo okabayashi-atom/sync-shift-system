@@ -327,6 +327,8 @@ if uploaded_file is not None:
                                     calendar_data[d_num][h][row_key][assigned_h] = "┃"
 
         st.success(f"🎉 シート「{selected_sheet_name}」のデータを読み込みました。時間列を狭めて名前枠を最大限広げました！")
+        # サービス固定シフトを反映
+        apply_fixed_service_schedule(calendar_data)
     except Exception as e:
         st.error(f"Excelの読み込みエラー: {e}")
 
