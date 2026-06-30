@@ -29,7 +29,7 @@ PUBLIC_URL = "http://test.atom-makoto.com/Flower_House/sync_shift_System/"
 def apply_fixed_service_schedule(calendar_data):
     # すべての列を "s1" に指定しました
     schedules = [
-        (7, 0, "越智f", "s1"), (7, 30, "八子mh", "s1"), (8, 0, "木村fh", "s1"),
+        (7, 0, "越智f", "g1"), (7, 30, "八子mh", "s1"), (8, 0, "木村fh", "s1"),
         (10, 0, "赤尾b", "s1"), (10, 30, "赤尾b", "s1"),
         (11, 0, "越智b", "s1"), (11, 30, "越智b", "s1"),
         (12, 0, "越智h", "s1"), (12, 30, "八子h", "s1"),
