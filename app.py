@@ -3,7 +3,6 @@ import openpyxl
 import datetime
 import re
 import os
-import json
 
 # システム環境設定（不具合防止）
 os.environ["STREAMLIT_SERVER_HEADLESS"] = "true"
@@ -71,6 +70,19 @@ st.markdown("""
     .calendar-table { table-layout: fixed !important; width: 100% !important; border-collapse: collapse !important; }
     .calendar-table td { container-type: inline-size !important; vertical-align: middle !important; padding: 4px 1px !important; height: 18px !important; }
     .staff-name-box { display: block !important; white-space: nowrap !important; overflow: visible !important; font-size: min(12px, 25cqw) !important; text-align: center; line-height: 1.2 !important; }
+    
+    /* ブロック回避用HTMLボタンのデザイン調整 */
+    .print-anchor-btn {
+        display: block; width: 100%; height: 45px; line-height: 45px;
+        text-align: center; background-color: #e67e22; color: white !important;
+        text-decoration: none !important; font-weight: bold; font-size: 15px;
+        border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.15); margin-bottom: 15px;
+    }
+    .print-anchor-btn:hover { background-color: #d35400; }
+    .btn-month { background-color: #1c83e1; }
+    .btn-month:hover { background-color: #1565c0; }
+    .btn-day { background-color: #4CAF50; }
+    .btn-day:hover { background-color: #388E3C; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -230,48 +242,41 @@ def make_html_table_with_time(day_schedule, font_size="11px", padding="3px", is_
     html.append("</table>")
     return "".join(html)
 
-# 💡 ポップアップ自動印刷ウインドウを生成するJavaScriptコア関数
-def launch_print_popup(html_body_content, page_size="A4", orientation="landscape", table_font_size="11px"):
-    js_code = f"""
-    <script>
-    (function() {{
-        var printWindow = window.open('', '_blank');
-        if(!printWindow) {{
-            alert('ポップアップブロックが作動しました。ブラウザの設定でポップアップを許可してください。');
-            return;
-        }}
-        printWindow.document.write(`
+# 💡 ブロックを100%回避する印刷用データスキーム生成関数
+def make_pure_html_link(html_content, label_text, css_class, page_size="A4", orientation="landscape", font_size="11px"):
+    escaped_content = html_content.replace("`", "\\`").replace("$", "\\$")
+    full_html = f"""
+    <a href="javascript:void(0);" class="print-anchor-btn {css_class}" onclick="
+        var w = window.open('', '_blank');
+        w.document.write(\`
             <!DOCTYPE html>
             <html>
             <head>
-                <meta charset="utf-8">
+                <meta charset='utf-8'>
                 <title>印刷プレビュー</title>
                 <style>
                     body {{ margin: 0; padding: 0; background: white; font-family: sans-serif; }}
                     * {{ -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }}
                     @page {{ size: {page_size} {orientation}; margin: 5mm; }}
                     table {{ width: 100%; border-collapse: collapse; text-align: center; table-layout: fixed; }}
-                    td {{ padding: 2px 1px; vertical-align: middle; height: 19px; font-size: {table_font_size}; border: 1px solid #333; }}
-                    .staff-name-box {{ display: block; white-space: nowrap; overflow: visible; text-align: center; font-size: {table_font_size}; line-height: 1.1; }}
+                    td {{ padding: 2px 1px; vertical-align: middle; height: 19px; font-size: {font_size}; border: 1px solid #333; }}
+                    .staff-name-box {{ display: block; white-space: nowrap; overflow: visible; text-align: center; font-size: {font_size}; line-height: 1.1; }}
                 </style>
             </head>
             <body>
-                {html_body_content}
+                {escaped_content}
                 <script>
                     window.onload = function() {{
-                        setTimeout(function() {{
-                            window.print();
-                        }}, 300);
+                        setTimeout(function() {{ window.print(); }}, 300);
                     }};
                 <\/script>
             </body>
             </html>
-        `);
-        printWindow.document.close();
-    }})();
-    </script>
+        \`);
+        w.document.close();
+    ">{label_text}</a>
     """
-    st.components.v1.html(js_code, height=0, width=0)
+    st.components.v1.html(full_html, height=52)
 
 if uploaded_file is not None:
     view_mode = st.tabs(["📊 1ヶ月表示（カレンダー）", "📅 1週間表示（時間軸スリム）", "🔍 1日集中表示"])
@@ -280,30 +285,31 @@ if uploaded_file is not None:
     # タブ1：1ヶ月表示（カレンダー形式）
     # ────────────────────────────────────────────────────────
     with view_mode[0]:
-        if st.button("🖨️ 1ヶ月分カレンダーを印刷する（別タブでA4横開き）", key="cmd_print_month", use_container_width=True):
-            # 印刷用HTMLの組み立て
-            m_html = [f"<h2 style='text-align:center;'>{target_month}月 シフト配置カレンダー</h2>"]
-            m_html.append("<table style='width:100%; border-collapse:collapse; table-layout:fixed; border:none;'>")
-            m_html.append("<tr style='background:#f0f0f0; font-weight:bold; height:30px;'>")
-            for w_day in ["日", "月", "火", "水", "木", "金", "土"]:
-                m_html.append(f"<td style='border:1px solid #333;'>{w_day}曜日</td>")
+        # カレンダー印刷用のHTML組み立て
+        m_html = [f"<h2 style='text-align:center;'>{target_month}月 シフト配置カレンダー</h2>"]
+        m_html.append("<table style='width:100%; border-collapse:collapse; table-layout:fixed; border:none;'>")
+        m_html.append("<tr style='background:#f0f0f0; font-weight:bold; height:30px;'>")
+        for w_day in ["日", "月", "火", "水", "木", "金", "土"]:
+            m_html.append(f"<td style='border:1px solid #333;'>{w_day}曜日</td>")
+        m_html.append("</tr>")
+        
+        d_ptr = 1
+        for wk in range(6):
+            if d_ptr > max_days: break
+            m_html.append("<tr style='vertical-align:top;'>")
+            for d_of_w in range(7):
+                cell_idx = wk * 7 + d_of_w
+                if start_offset <= cell_idx and d_ptr <= max_days:
+                    t_html = make_html_table_with_time(calendar_data[d_ptr], font_size="8px", padding="1px", is_large=False)
+                    m_html.append(f"<td style='border:1px solid #333; padding:3px; background:#fff;'><strong>{d_ptr}日</strong><div style='margin-top:3px;'>{t_html}</div></td>")
+                    d_ptr += 1
+                else:
+                    m_html.append("<td style='border:1px solid #333; background:#fafafa; opacity:0.3;'></td>")
             m_html.append("</tr>")
-            
-            d_ptr = 1
-            for wk in range(6):
-                if d_ptr > max_days: break
-                m_html.append("<tr style='vertical-align:top;'>")
-                for d_of_w in range(7):
-                    cell_idx = wk * 7 + d_of_w
-                    if start_offset <= cell_idx and d_ptr <= max_days:
-                        t_html = make_html_table_with_time(calendar_data[d_ptr], font_size="8px", padding="1px", is_large=False)
-                        m_html.append(f"<td style='border:1px solid #333; padding:3px; background:#fff;'><strong>{d_ptr}日</strong><div style='margin-top:3px;'>{t_html}</div></td>")
-                        d_ptr += 1
-                    else:
-                        m_html.append("<td style='border:1px solid #333; background:#fafafa; opacity:0.3;'></td>")
-                m_html.append("</tr>")
-            m_html.append("</table>")
-            launch_print_popup("".join(m_html), page_size="A4", orientation="landscape", table_font_size="8px")
+        m_html.append("</table>")
+        
+        # 100%安全な別タブ起動リンク
+        make_pure_html_link("".join(m_html), "🖨️ 1ヶ月分カレンダーを印刷する（A4横・ブロック回避版）", "btn-month", page_size="A4", orientation="landscape", font_size="8px")
 
         # 画面上への描画
         weekdays = ["日", "月", "火", "水", "木", "金", "土"]
@@ -400,12 +406,12 @@ if uploaded_file is not None:
             h_sheet.append("</table>")
             return "".join(h_sheet)
 
-        if st.button("🖨️ この週間シフト表を印刷する（別タブでA3横の大判起動）", key="cmd_print_week", use_container_width=True):
-            week_html_content = build_week_html_table()
-            launch_print_popup(week_html_content, page_size="A3", orientation="landscape", table_font_size="11px")
+        # 週表示用のブロック回避型リンク
+        week_html_content = build_week_html_table()
+        make_pure_html_link(week_html_content, "🖨️ この週間シフト表を印刷する（A3横・ブロック回避版）", "btn-week", page_size="A3", orientation="landscape", font_size="11px")
 
         # 画面用描画
-        st.html(f"<div style='border: 2px solid #999; background-color: #ffffff; border-radius: 6px; padding: 5px;'>{build_week_html_table()}</div>")
+        st.html(f"<div style='border: 2px solid #999; background-color: #ffffff; border-radius: 6px; padding: 5px;'>{week_html_content}</div>")
 
     # ────────────────────────────────────────────────────────
     # タブ3：1日集中表示（詳細縦型形式）
@@ -429,15 +435,15 @@ if uploaded_file is not None:
             wd_str = ["月", "火", "水", "木", "金", "土", "日"][this_date.weekday()]
         except: wd_str = ""
             
-        if st.button(f"🖨️ {st.session_state.current_day_val}日の詳細を印刷する（別タブでA4縦開き）", key="cmd_print_day", use_container_width=True):
-            day_table_html = make_html_table_with_time(calendar_data[st.session_state.current_day_val], font_size="14px", padding="5px", is_large=True)
-            day_content = f"""
-            <h2 style='text-align: center; color: #1c83e1;'>🔍 {target_month}月 {st.session_state.current_day_val}日 ({wd_str}曜日) シフト配置詳細</h2>
-            <div style='max-width: 680px; margin: 0 auto;'>{day_table_html}</div>
-            """
-            launch_print_popup(day_content, page_size="A4", orientation="portrait", table_font_size="14px")
+        day_table_html = make_html_table_with_time(calendar_data[st.session_state.current_day_val], font_size="14px", padding="5px", is_large=True)
+        day_content = f"""
+        <h2 style='text-align: center; color: #1c83e1;'>🔍 {target_month}月 {st.session_state.current_day_val}日 ({wd_str}曜日) シフト配置詳細</h2>
+        <div style='max-width: 680px; margin: 0 auto;'>{day_table_html}</div>
+        """
+        
+        # 1日用ブロック回避型リンク
+        make_pure_html_link(day_content, f"🖨️ {st.session_state.current_day_val}日の詳細を印刷する（A4縦・ブロック回避版）", "btn-day", page_size="A4", orientation="portrait", font_size="14px")
 
         # 画面用描画
         st.markdown(f"<h2 style='text-align: center; color: #1c83e1;'>🔍 {target_month}月 {st.session_state.current_day_val}日 ({wd_str}曜日) の詳細配置</h2>", unsafe_allow_html=True)
-        large_table_html = make_html_table_with_time(calendar_data[st.session_state.current_day_val], font_size="15px", padding="6px", is_large=True)
-        st.html(f"<div style='max-width: 650px; margin: 0 auto; border: 2px solid #1c83e1; background-color: #ffffff; border-radius: 8px; padding: 10px;'>{large_table_html}</div>")
+        st.html(f"<div style='max-width: 650px; margin: 0 auto; border: 2px solid #1c83e1; background-color: #ffffff; border-radius: 8px; padding: 10px;'>{day_table_html}</div>")
