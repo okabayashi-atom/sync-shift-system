@@ -13,14 +13,13 @@ os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
 st.set_page_config(page_title="シフト配置カレンダー", layout="wide")
 
 # ────────────────────────────────────────────────────────
-# ⚙️ FTPサーバーの接続設定（指定いただいたURL・フォルダ構造に完全対応）
+# ⚙️ FTPサーバーの接続設定（テストアップ用アカウントに修正済）
 # ────────────────────────────────────────────────────────
-# いつもFFFTPでお使いになっている接続情報を入力してください
-FTP_HOST = "ftp.test.atom-makoto.com"         # ➔ レンタルサーバーのFTPホスト名
-FTP_USER = "ここにユーザー名を入力"              # ➔ FFFTPのユーザー名
-FTP_PASS = "ここにパスワードを入力"            # ➔ FFFTPのパスワード
-FTP_DIR  = "/Flower_House/sync_shift_System" # ➔ 週間予定表（シフト）の保存先フォルダ
-OUTPUT_FILE_NAME = "index.html"              # ➔ ファイル名を index.html にするとURLがスッキリします
+FTP_HOST = "sv17062.xserver.jp"                  # ➔ テスト用ホスト名
+FTP_USER = "atom_test@test.atom-makoto.com"      # ➔ テスト用ユーザー名
+FTP_PASS = "d7CWAQrw"                            # ➔ テスト用パスワード
+FTP_DIR  = "/Flower_House/sync_shift_System"     # ➔ 週間予定表（シフト）の保存先フォルダ
+OUTPUT_FILE_NAME = "index.html"                  # ➔ ファイル名
 
 # 等幅・改行なし・時間軸スリム化 ＆ 🖨️印刷・PDF保存時用のスタイル完全制御CSS
 st.markdown("""
@@ -470,7 +469,7 @@ with view_mode[1]:
             if 1 <= current_d <= max_days:
                 r2 = calendar_data[current_d][hour]["row2"]
                 html_sheet.append(f"<td style='border: 1px solid #eee; background-color: #ffffff;'></td><td style='border: 1px solid #ccc; font-weight: bold; background-color: {get_bg(r2['h1'], 'h1')}'>{wrap_name(r2['h1'], 'h1')}</td>")
-                html_sheet.append(f"<td style='border: 1px solid #eee; background-color: #ffffff;'></td><td style='border: 1px solid #ccc; font-weight: bold; background-color: {get_bg(r2['h2'], 'h2')}'>{wrap_name(r2['h2'], 'h2')}</td>")
+                html_sheet.append(f"<td style='border: 1px solid #ccc; font-weight: bold; background-color: {get_bg(r2['h2'], 'h2')}'>{wrap_name(r2['h2'], 'h2')}</td>")
                 html_sheet.append(f"<td style='border: 1px solid #eee; background-color: #ffffff;'></td><td style='border: 1px solid #ccc; font-weight: bold; background-color: {get_bg(r2['h3'], 'h3')}'>{wrap_name(r2['h3'], 'h3')}</td>")
             else:
                 html_sheet.append("<td colspan='6' style='border: 1px solid #eee; background-color: #fdfdfd; opacity:0.2;'></td>")
