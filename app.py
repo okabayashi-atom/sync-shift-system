@@ -60,7 +60,7 @@ def apply_fixed_service_schedule(calendar_data):
                         last_name = None
 
 # ────────────────────────────────────────────────────────
-# 🖨️ 「項目を削ってさらに上詰め」＆「デフォルト2行分拡張」印刷CSS
+# 🖨️ 「上下左右にしっかり余白を作る」印刷CSS
 # ────────────────────────────────────────────────────────
 st.markdown("""
     <style>
@@ -98,12 +98,10 @@ st.markdown("""
         }
         
         .print-target {
-            position: fixed !important;
-            left: 0mm !important;
-            right: 0mm !important;
-            top: -4mm !important; /* 💡 タイトルを削ったので、さらに無駄な隙間なく上にぴったり吸着 */
+            position: relative !important;
             width: 100% !important;
-            margin: 0 !important;
+            /* 💡 外枠に程よく余裕（余白）を持たせるためにマージンを設定 */
+            margin: 10mm auto 0 auto !important;
             padding: 0 !important;
             transform: scale(1.0) !important; 
             transform-origin: top center !important;
@@ -112,7 +110,8 @@ st.markdown("""
         
         @page {
             size: A3 landscape;
-            margin: 0mm !important; 
+            /* 💡 上下左右にしっかり10mmの余白を明示的に確保 */
+            margin: 10mm !important; 
         }
         
         .week-print-table {
@@ -123,7 +122,7 @@ st.markdown("""
         .week-print-table th, .week-print-table td {
             font-size: 11px !important; 
             padding: 2px 1px !important;
-            height: 26px !important; /* デフォルトで2行分の高さを確保 */
+            height: 24px !important; /* 余白をあけた分、マスの高さを26pxから24pxに微調整 */
             line-height: 1.1 !important;
             border: 1px solid #000 !important;
         }
@@ -322,7 +321,7 @@ if uploaded_file is not None:
                         st.markdown("<div style='height: 467px;'></div>", unsafe_allow_html=True)
 
     # ────────────────────────────────────────────────────────
-    # タブ2：1週間表示（★タイトル項目を削って完全上詰め）
+    # タブ2：1週間表示（★余白調整版）
     # ────────────────────────────────────────────────────────
     with view_mode[1]:
         if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
@@ -349,7 +348,6 @@ if uploaded_file is not None:
         
         h_sheet = []
         h_sheet.append("<div class='print-target'>")
-        # 💡 タイトル文字列項目を完全削除（印刷余白を使い切るため）
         
         h_sheet.append("<table class='calendar-table week-print-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
         h_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold;'>")
