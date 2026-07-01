@@ -60,11 +60,11 @@ def apply_fixed_service_schedule(calendar_data):
                         last_name = None
 
 # ────────────────────────────────────────────────────────
-# 🖨️ 「上ぴったり固定」＆「横幅適正化」印刷専用CSS
+# 🖨️ 「適正な上位置」＆「両端ぴったり」に合わせる超微調整CSS
 # ────────────────────────────────────────────────────────
 st.markdown("""
     <style>
-    /* 💻 Webブラウザ閲覧時のスタイル */
+    /* 💻 通常ブラウザ閲覧用 */
     div[data-testid="stMainBlockContainer"] { 
         max-width: 96% !important; 
         padding: 4rem 1.5rem 2rem 1.5rem !important;
@@ -79,35 +79,33 @@ st.markdown("""
     .calendar-table td { container-type: inline-size !important; vertical-align: middle !important; padding: 4px 1px !important; height: 18px !important; }
     .staff-name-box { display: block !important; white-space: nowrap !important; overflow: visible !important; font-size: min(12px, 25cqw) !important; text-align: center; line-height: 1.2 !important; }
     
-    /* 🖨️ 印刷専用：位置の強制調整 */
+    /* 🖨️ 印刷専用：両端・上位置のジャストフィット調整 */
     @media print {
-        /* 表（.print-target）以外を完全に消し去る */
         body * {
             visibility: hidden !important;
         }
         
-        /* ターゲットエリアのみ完全復活 */
         .print-target, .print-target * {
             visibility: visible !important;
         }
         
-        /* position: fixed を使って印刷可能領域の絶対最上部に固定 */
         .print-target {
             position: fixed !important;
-            left: -5mm !important;    /* 左側の余白相殺 */
-            top: -15mm !important;   /* 💡 上の余白を強力に相殺して上にぴったり詰める */
-            width: 100% !important;  /* 横幅を画面に合わせる */
+            left: 0mm !important;      /* 💡 左右の隙間を排除して両端ぴったりに */
+            right: 0mm !important;     /* 💡 左右の隙間を排除して両端ぴったりに */
+            top: -8mm !important;      /* 💡 上すぎず、適度に詰まったベスト位置に調整 */
+            width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
-            /* 💡 横が広がりすぎないよう、かつ縦が収まる絶妙な縮小率に調整 */
-            transform: scale(0.94) !important;
-            transform-origin: top left !important;
+            /* 横幅を両端に広げつつ、縦1枚に収めるための倍率調整 */
+            transform: scale(0.98) !important;
+            transform-origin: top center !important;
             page-break-inside: avoid !important;
         }
         
         @page {
             size: A3 landscape;
-            margin: 0mm !important; /* ブラウザ規定の余白を強制キャンセル */
+            margin: 0mm !important; /* ブラウザ規定の余白を完全無効化 */
         }
         
         .week-print-table {
@@ -115,7 +113,7 @@ st.markdown("""
             width: 100% !important;
         }
         .week-print-table th, .week-print-table td {
-            font-size: 10px !important; 
+            font-size: 10.5px !important; 
             padding: 1px 0px !important;
             height: 14.8px !important; 
             line-height: 1.0 !important;
