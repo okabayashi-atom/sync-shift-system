@@ -163,7 +163,7 @@ schedules = [
         # (9, 0, "月水限定さん", "s1", ["月", "水"]),
     ]
     
-    　　for d in range(1, 32):
+for d in range(1, 32):
         # その日の曜日を算出
         try:
             this_date = datetime.date(target_year, target_month, d)
