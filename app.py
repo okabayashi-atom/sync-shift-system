@@ -19,7 +19,7 @@ def apply_fixed_service_schedule(calendar_data, target_year, target_month):
 
     # ★ ここをお好きなように打ち換えてください！
     # 形式: (時, 分, "名前", "列(s1/s2/s3)", "曜日(全 / 土 / 日 / ["月","水"] など)")
-     schedules = [
+schedules = [
         # ーーー 共通 ーーー
         (7, 0, "越智f", "s1", "全"), 
         (7, 30, "八子mh", "s1", "全"), 
