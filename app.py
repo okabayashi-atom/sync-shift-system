@@ -60,11 +60,11 @@ def apply_fixed_service_schedule(calendar_data):
                         last_name = None
 
 # ────────────────────────────────────────────────────────
-# 🖨️ 「適正な上位置」＆「両端ぴったり」に合わせる超微調整CSS
+# 🖨️ 「デフォルト2行分拡張」＆「文字重なり防止」印刷CSS
 # ────────────────────────────────────────────────────────
 st.markdown("""
     <style>
-    /* 💻 通常ブラウザ閲覧用 */
+    /* 💻 Web画面表示用 */
     div[data-testid="stMainBlockContainer"] { 
         max-width: 96% !important; 
         padding: 4rem 1.5rem 2rem 1.5rem !important;
@@ -76,10 +76,19 @@ st.markdown("""
     .stButton > button { height: 42px !important; min-height: 42px !important; font-weight: bold !important; }
     
     .calendar-table { table-layout: fixed !important; width: 100% !important; border-collapse: collapse !important; }
-    .calendar-table td { container-type: inline-size !important; vertical-align: middle !important; padding: 4px 1px !important; height: 18px !important; }
-    .staff-name-box { display: block !important; white-space: nowrap !important; overflow: visible !important; font-size: min(12px, 25cqw) !important; text-align: center; line-height: 1.2 !important; }
+    .calendar-table td { vertical-align: middle !important; padding: 4px 1px !important; }
     
-    /* 🖨️ 印刷専用：両端・上位置のジャストフィット調整 */
+    /* 💡 文字の重なりを防ぐため、はみ出そうなら自動で2行に折り返す設定 */
+    .staff-name-box { 
+        display: block !important; 
+        white-space: normal !important; /* 横に突き抜けず、自動折り返しを許可 */
+        word-break: break-all !important; 
+        font-size: 11px !important; 
+        text-align: center; 
+        line-height: 1.1 !important; 
+    }
+    
+    /* 🖨️ 印刷専用：高さを2行分に広げてA3いっぱいに */
     @media print {
         body * {
             visibility: hidden !important;
@@ -91,36 +100,37 @@ st.markdown("""
         
         .print-target {
             position: fixed !important;
-            left: 0mm !important;      /* 💡 左右の隙間を排除して両端ぴったりに */
-            right: 0mm !important;     /* 💡 左右の隙間を排除して両端ぴったりに */
-            top: -8mm !important;      /* 💡 上すぎず、適度に詰まったベスト位置に調整 */
+            left: 0mm !important;
+            right: 0mm !important;
+            top: -6mm !important; 
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
-            /* 横幅を両端に広げつつ、縦1枚に収めるための倍率調整 */
-            transform: scale(0.98) !important;
+            transform: scale(1.0) !important; /* 💡 マスの高さを出したので縮小せず等倍でA3いっぱいに */
             transform-origin: top center !important;
             page-break-inside: avoid !important;
         }
         
         @page {
             size: A3 landscape;
-            margin: 0mm !important; /* ブラウザ規定の余白を完全無効化 */
+            margin: 0mm !important; 
         }
         
         .week-print-table {
             border: 2px solid #000 !important;
             width: 100% !important;
         }
+        
+        /* 💡 1マスの高さを「デフォルトで2行分（26px）」に引き伸ばして縦をA3満杯にする */
         .week-print-table th, .week-print-table td {
-            font-size: 10.5px !important; 
-            padding: 1px 0px !important;
-            height: 14.8px !important; 
-            line-height: 1.0 !important;
+            font-size: 11px !important; 
+            padding: 2px 1px !important;
+            height: 26px !important; /* デフォルトでしっかり2行分の高さを確保 */
+            line-height: 1.1 !important;
             border: 1px solid #000 !important;
         }
         .week-print-table .time-col {
-            font-size: 9px !important;
+            font-size: 10px !important;
             font-weight: bold !important;
         }
     }
