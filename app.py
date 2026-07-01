@@ -11,40 +11,90 @@ os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
 st.set_page_config(page_title="シフト配置確認システム", layout="wide")
 
 # ────────────────────────────────────────────────────────
-# 📌 サービス固定シフト反映関数
+# 📌 曜日対応・サービス固定シフト反映関数
 # ────────────────────────────────────────────────────────
-def apply_fixed_service_schedule(calendar_data):
+def apply_fixed_service_schedule(calendar_data, target_year, target_month):
+    # 曜日の日本語マッピング (0=月, 1=火, ... 5=土, 6=日)
+    weekday_map = {0: "月", 1: "火", 2: "水", 3: "木", 4: "金", 5: "土", 6: "日"}
+
+    # ★ ここをお好きなように打ち換えてください！
+    # 形式: (時, 分, "名前", "列(s1/s2/s3)", "曜日(全 / 土 / 日 / ["月","水"] など)")
     schedules = [
         # ーーー サービス1 (s1) ーーー
-        (7, 0, "越智f", "s1"), (7, 30, "八子mh", "s1"), (8, 0, "木村fh", "s1"),
-        (10, 0, "赤尾b", "s1"), (10, 30, "赤尾b", "s1"),
-        (11, 0, "越智b", "s1"), (11, 30, "越智b", "s1"),
-        (12, 0, "越智h", "s1"), (12, 30, "八子h", "s1"),
-        (14, 0, "越智sw", "s1"), (14, 30, "越智sw", "s1"),
-        (15, 0, "貝森f", "s1"),
-        (17, 0, "越智f", "s1"), (17, 30, "貝森c", "s1"),
-        (18, 30, "西井eh", "s1"), (19, 0, "照井e", "s1"), (19, 30, "八子ef", "s1"),
-        (20, 0, "越智e", "s1"), (20, 30, "貝森f", "s1"), (21, 0, "平野e", "s1"),
+        (7, 0, "越智f", "s1", "全"), 
+        (7, 30, "八子mh", "s1", "全"), 
+        (8, 0, "木村fh", "s1", "全"),
+        (10, 0, "赤尾b", "s1", "全"), 
+        (10, 30, "赤尾b", "s1", "全"),
+        (11, 0, "越智b", "s1", "全"), 
+        (11, 30, "越智b", "s1", "全"),
+        (12, 0, "越智h", "s1", "全"), 
+        (12, 30, "八子h", "s1", "全"),
+        (14, 0, "越智sw", "s1", "全"), 
+        (14, 30, "越智sw", "s1", "全"),
+        (15, 0, "貝森f", "s1", "全"),
+        (17, 0, "越智f", "s1", "全"), 
+        (17, 30, "貝森c", "s1", "全"),
+        (18, 30, "西井eh", "s1", "全"), 
+        (19, 0, "照井e", "s1", "全"), 
+        (19, 30, "八子ef", "s1", "全"),
+        (20, 0, "越智e", "s1", "全"), 
+        (20, 30, "貝森f", "s1", "全"), 
+        (21, 0, "平野e", "s1", "全"),
         
         # ーーー サービス2 (s2) ーーー
-        (14, 0, "山中sw", "s2"), (14, 30, "山中sw", "s2"),
-        (16, 0, "上吉川sw", "s2"), (16, 30, "上吉川sw", "s2"),
-        (17, 0, "木村", "s2"),
+        (14, 0, "山中sw", "s2", "全"), 
+        (14, 30, "山中sw", "s2", "全"),
+        (16, 0, "上吉川sw", "s2", "全"), 
+        (16, 30, "上吉川sw", "s2", "全"),
+        (17, 0, "木村", "s2", "全"),
 
         # ーーー サービス3 (s3) ーーー
-        (5, 0, "越智m", "s3"), (5, 30, "貝森m", "s3"), (6, 0, "照井mf", "s3"),
-        (7, 0, "佐藤m", "s3"), (7, 30, "平野m", "s3"), (8, 0, "貝森c", "s3"),
-        (10, 0, "貝森h", "s3"), (10, 30, "石田b", "s3"), (12, 0, "貝森c", "s3"),
-        (13, 0, "照井sw", "s3"), (13, 30, "照井sw", "s3"),
-        (17, 0, "平野sw", "s3"), (17, 30, "平野sw", "s3"),
-        (18, 0, "上吉川w", "s3"), (18, 30, "佐藤e", "s3")
+        (5, 0, "越智m", "s3", "全"), 
+        (5, 30, "貝森m", "s3", "全"), 
+        (6, 0, "照井mf", "s3", "全"),
+        (7, 0, "佐藤m", "s3", "全"), 
+        (7, 30, "平野m", "s3", "全"), 
+        (8, 0, "貝森c", "s3", "全"),
+        (10, 0, "貝森h", "s3", "全"), 
+        (10, 30, "石田b", "s3", "全"), 
+        (12, 0, "貝森c", "s3", "全"),
+        (13, 0, "照井sw", "s3", "全"), 
+        (13, 30, "照井sw", "s3", "全"),
+        (17, 0, "平野sw", "s3", "全"), 
+        (17, 30, "平野sw", "s3", "全"),
+        (18, 0, "上吉川w", "s3", "全"), 
+        (18, 30, "佐藤e", "s3", "全")
+        
+        # 【打ち込み例】土曜日だけ s1 の 7:00 に固定名を入れたい場合：
+        # (7, 0, "土曜限定さん", "s1", "土"),
+        # 【打ち込み例】月曜と水曜だけ入れたい場合：
+        # (9, 0, "月水限定さん", "s1", ["月", "水"]),
     ]
     
     for d in range(1, 32):
-        for h, m, name, col in schedules:
-            row_key = "row1" if m == 0 else "row2"
-            calendar_data[d][h][row_key][col] = name
+        # その日の曜日を算出
+        try:
+            this_date = datetime.date(target_year, target_month, d)
+            w_str = weekday_map[this_date.weekday()] # "月", "火" ...
+        except:
+            continue # 存在しない日付（31日など）はスキップ
             
+        for h, m, name, col, w_cond in schedules:
+            # 曜日条件の判定
+            is_match = False
+            if w_cond == "全":
+                is_match = True
+            elif isinstance(w_cond, list) and w_str in w_cond:
+                is_match = True
+            elif w_cond == w_str:
+                is_match = True
+                
+            if is_match:
+                row_key = "row1" if m == 0 else "row2"
+                calendar_data[d][h][row_key][col] = name
+            
+        # 〃（同上）の補完処理
         hours_seq = list(range(5, 24)) + [0]
         for col_key in ["s1", "s2", "s3"]:
             last_name = None
@@ -60,11 +110,10 @@ def apply_fixed_service_schedule(calendar_data):
                         last_name = None
 
 # ────────────────────────────────────────────────────────
-# 🖨️ 「上下左右にしっかり余白を作る」印刷CSS
+# 🖨️ UI・デザイン用CSS
 # ────────────────────────────────────────────────────────
 st.markdown("""
     <style>
-    /* 💻 Web画面表示用 */
     div[data-testid="stMainBlockContainer"] { 
         max-width: 96% !important; 
         padding: 4rem 1.5rem 2rem 1.5rem !important;
@@ -87,49 +136,28 @@ st.markdown("""
         line-height: 1.1 !important; 
     }
     
-    /* 🖨️ 印刷専用設定 */
     @media print {
-        body * {
-            visibility: hidden !important;
-        }
-        
-        .print-target, .print-target * {
-            visibility: visible !important;
-        }
-        
+        body * { visibility: hidden !important; }
+        .print-target, .print-target * { visibility: visible !important; }
         .print-target {
             position: relative !important;
             width: 100% !important;
-            /* 💡 外枠に程よく余裕（余白）を持たせるためにマージンを設定 */
             margin: 10mm auto 0 auto !important;
             padding: 0 !important;
             transform: scale(1.0) !important; 
             transform-origin: top center !important;
             page-break-inside: avoid !important;
         }
-        
-        @page {
-            size: A3 landscape;
-            /* 💡 上下左右にしっかり10mmの余白を明示的に確保 */
-            margin: 10mm !important; 
-        }
-        
-        .week-print-table {
-            border: 2px solid #000 !important;
-            width: 100% !important;
-        }
-        
+        @page { size: A3 landscape; margin: 10mm !important; }
+        .week-print-table { border: 2px solid #000 !important; width: 100% !important; }
         .week-print-table th, .week-print-table td {
             font-size: 11px !important; 
             padding: 2px 1px !important;
-            height: 24px !important; /* 余白をあけた分、マスの高さを26pxから24pxに微調整 */
+            height: 24px !important; 
             line-height: 1.1 !important;
             border: 1px solid #000 !important;
         }
-        .week-print-table .time-col {
-            font-size: 10px !important;
-            font-weight: bold !important;
-        }
+        .week-print-table .time-col { font-size: 10px !important; font-weight: bold !important; }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -226,7 +254,8 @@ if uploaded_file is not None:
                                 if not current_val or current_val == "┃":
                                     calendar_data[d_num][h][row_key][assigned_h] = "┃"
 
-        apply_fixed_service_schedule(calendar_data)
+        # 💡 引数に target_year と target_month を渡して曜日判定できるように拡張
+        apply_fixed_service_schedule(calendar_data, target_year, target_month)
         st.success(f"🎉 シート「{selected_sheet_name}」のデータを正常に解析しました。")
     except Exception as e:
         st.error(f"Excelの読み込みエラー: {e}")
@@ -321,7 +350,7 @@ if uploaded_file is not None:
                         st.markdown("<div style='height: 467px;'></div>", unsafe_allow_html=True)
 
     # ────────────────────────────────────────────────────────
-    # タブ2：1週間表示（★余白調整版）
+    # タブ2：1週間表示
     # ────────────────────────────────────────────────────────
     with view_mode[1]:
         if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
