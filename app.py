@@ -60,11 +60,11 @@ def apply_fixed_service_schedule(calendar_data):
                         last_name = None
 
 # ────────────────────────────────────────────────────────
-# 🖨️ どのPCでも「規定の表だけ」を強制1枚印刷させる魔法のCSS
+# 🖨️ 「上ぴったり」「横いっぱい」に引き伸ばす印刷専用CSS
 # ────────────────────────────────────────────────────────
 st.markdown("""
     <style>
-    /* 💻 通常画面のスタイル定義 */
+    /* 💻 Webブラウザ閲覧時のスタイル */
     div[data-testid="stMainBlockContainer"] { 
         max-width: 96% !important; 
         padding: 4rem 1.5rem 2rem 1.5rem !important;
@@ -79,46 +79,45 @@ st.markdown("""
     .calendar-table td { container-type: inline-size !important; vertical-align: middle !important; padding: 4px 1px !important; height: 18px !important; }
     .staff-name-box { display: block !important; white-space: nowrap !important; overflow: visible !important; font-size: min(12px, 25cqw) !important; text-align: center; line-height: 1.2 !important; }
     
-    /* 🖨️ 印刷時：余計な要素を完全排除し、規定の表だけを縮小フィット */
+    /* 🖨️ 印刷専用：上・横に限界まで引き伸ばす */
     @media print {
-        /* 表（.print-target）以外のシステム要素、ヘッダー、ボタン等をすべて完全非表示に */
+        /* 表（.print-target）以外を完全に消し去る */
         body * {
             visibility: hidden !important;
         }
         
-        /* 印刷ターゲット（週間表のエリア）とその親要素だけをピンポイントで復活 */
+        /* ターゲットエリアのみ完全復活 */
         .print-target, .print-target * {
             visibility: visible !important;
         }
         
-        /* 印刷エリアの位置を画面の左上に強制固定 */
+        /* 位置を左上（0,0）に吸着させ、横幅を限界突破(100vw)させる */
         .print-target {
             position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
+            left: -5mm !important; /* 物理的な印刷余白を相殺して左いっぱいに */
+            top: -5mm !important;  /* 物理的な印刷余白を相殺して上にぴったり */
+            width: calc(100vw + 10mm) !important; /* 画面幅いっぱいに引き伸ばす */
             margin: 0 !important;
             padding: 0 !important;
-            /* 💡 A3横の縦幅に絶対収まるよう、表全体を印刷時のみ縮小ホールド(92%) */
-            transform: scale(0.92) !important;
+            /* 縦1枚に綺麗にフィットさせる倍率調整 */
+            transform: scale(0.96) !important;
             transform-origin: top left !important;
             page-break-inside: avoid !important;
         }
         
         @page {
             size: A3 landscape;
-            margin: 0mm !important; /* ブラウザの余白設定に影響されないよう0に固定 */
+            margin: 0mm !important; /* ブラウザ規定の余白を強制キャンセル */
         }
         
-        /* 枠線と文字サイズの微調整 */
         .week-print-table {
             border: 2px solid #000 !important;
             width: 100% !important;
         }
         .week-print-table th, .week-print-table td {
-            font-size: 10px !important; 
+            font-size: 10.5px !important; /* 横幅が伸びたので文字も少しクッキリ化 */
             padding: 1px 0px !important;
-            height: 15px !important; 
+            height: 14.8px !important; 
             line-height: 1.0 !important;
             border: 1px solid #000 !important;
         }
@@ -317,7 +316,7 @@ if uploaded_file is not None:
                         st.markdown("<div style='height: 467px;'></div>", unsafe_allow_html=True)
 
     # ────────────────────────────────────────────────────────
-    # タブ2：1週間表示（★ここが印刷ターゲット）
+    # タブ2：1週間表示（★印刷指定エリア）
     # ────────────────────────────────────────────────────────
     with view_mode[1]:
         if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
@@ -342,11 +341,8 @@ if uploaded_file is not None:
         start_d = st.session_state.current_week_idx * 7 + 1 - start_offset
         weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
         
-        # 📊 表本体（『print-target』クラスで囲み、ここだけを印刷対象にします）
         h_sheet = []
         h_sheet.append("<div class='print-target'>")
-        
-        # 印刷用のヘッダータイトルを表に内包させる
         h_sheet.append(f"<h3 style='text-align:center; margin: 5px 0; font-family:sans-serif;'>📅 {target_month}月 週間シフト配置表 ({weeks_list[st.session_state.current_week_idx]})</h3>")
         
         h_sheet.append("<table class='calendar-table week-print-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
@@ -391,7 +387,7 @@ if uploaded_file is not None:
                     h_sheet.append("<td colspan='6' style='background-color: #fafafa; opacity:0.1;'></td>")
             h_sheet.append("</tr>")
         h_sheet.append("</table>")
-        h_sheet.append("</div>") # .print-target 閉じ
+        h_sheet.append("</div>")
         
         st.html(f"<div style='border: 1px solid #999; background-color: #ffffff; border-radius: 6px; padding: 5px;'>{''.join(h_sheet)}</div>")
 
