@@ -60,7 +60,7 @@ def apply_fixed_service_schedule(calendar_data):
                         last_name = None
 
 # ────────────────────────────────────────────────────────
-# 🖨️ 「上ぴったり」「横いっぱい」に引き伸ばす印刷専用CSS
+# 🖨️ 「上ぴったり固定」＆「横幅適正化」印刷専用CSS
 # ────────────────────────────────────────────────────────
 st.markdown("""
     <style>
@@ -79,7 +79,7 @@ st.markdown("""
     .calendar-table td { container-type: inline-size !important; vertical-align: middle !important; padding: 4px 1px !important; height: 18px !important; }
     .staff-name-box { display: block !important; white-space: nowrap !important; overflow: visible !important; font-size: min(12px, 25cqw) !important; text-align: center; line-height: 1.2 !important; }
     
-    /* 🖨️ 印刷専用：上・横に限界まで引き伸ばす */
+    /* 🖨️ 印刷専用：位置の強制調整 */
     @media print {
         /* 表（.print-target）以外を完全に消し去る */
         body * {
@@ -91,16 +91,16 @@ st.markdown("""
             visibility: visible !important;
         }
         
-        /* 位置を左上（0,0）に吸着させ、横幅を限界突破(100vw)させる */
+        /* position: fixed を使って印刷可能領域の絶対最上部に固定 */
         .print-target {
-            position: absolute !important;
-            left: -5mm !important; /* 物理的な印刷余白を相殺して左いっぱいに */
-            top: -5mm !important;  /* 物理的な印刷余白を相殺して上にぴったり */
-            width: calc(100vw + 10mm) !important; /* 画面幅いっぱいに引き伸ばす */
+            position: fixed !important;
+            left: -5mm !important;    /* 左側の余白相殺 */
+            top: -15mm !important;   /* 💡 上の余白を強力に相殺して上にぴったり詰める */
+            width: 100% !important;  /* 横幅を画面に合わせる */
             margin: 0 !important;
             padding: 0 !important;
-            /* 縦1枚に綺麗にフィットさせる倍率調整 */
-            transform: scale(0.96) !important;
+            /* 💡 横が広がりすぎないよう、かつ縦が収まる絶妙な縮小率に調整 */
+            transform: scale(0.94) !important;
             transform-origin: top left !important;
             page-break-inside: avoid !important;
         }
@@ -115,7 +115,7 @@ st.markdown("""
             width: 100% !important;
         }
         .week-print-table th, .week-print-table td {
-            font-size: 10.5px !important; /* 横幅が伸びたので文字も少しクッキリ化 */
+            font-size: 10px !important; 
             padding: 1px 0px !important;
             height: 14.8px !important; 
             line-height: 1.0 !important;
