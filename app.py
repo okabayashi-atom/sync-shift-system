@@ -60,7 +60,7 @@ def apply_fixed_service_schedule(calendar_data):
                         last_name = None
 
 # ────────────────────────────────────────────────────────
-# 🖨️ 「デフォルト2行分拡張」＆「文字重なり防止」印刷CSS
+# 🖨️ 「項目を削ってさらに上詰め」＆「デフォルト2行分拡張」印刷CSS
 # ────────────────────────────────────────────────────────
 st.markdown("""
     <style>
@@ -78,17 +78,16 @@ st.markdown("""
     .calendar-table { table-layout: fixed !important; width: 100% !important; border-collapse: collapse !important; }
     .calendar-table td { vertical-align: middle !important; padding: 4px 1px !important; }
     
-    /* 💡 文字の重なりを防ぐため、はみ出そうなら自動で2行に折り返す設定 */
     .staff-name-box { 
         display: block !important; 
-        white-space: normal !important; /* 横に突き抜けず、自動折り返しを許可 */
+        white-space: normal !important; 
         word-break: break-all !important; 
         font-size: 11px !important; 
         text-align: center; 
         line-height: 1.1 !important; 
     }
     
-    /* 🖨️ 印刷専用：高さを2行分に広げてA3いっぱいに */
+    /* 🖨️ 印刷専用設定 */
     @media print {
         body * {
             visibility: hidden !important;
@@ -102,11 +101,11 @@ st.markdown("""
             position: fixed !important;
             left: 0mm !important;
             right: 0mm !important;
-            top: -6mm !important; 
+            top: -4mm !important; /* 💡 タイトルを削ったので、さらに無駄な隙間なく上にぴったり吸着 */
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
-            transform: scale(1.0) !important; /* 💡 マスの高さを出したので縮小せず等倍でA3いっぱいに */
+            transform: scale(1.0) !important; 
             transform-origin: top center !important;
             page-break-inside: avoid !important;
         }
@@ -121,11 +120,10 @@ st.markdown("""
             width: 100% !important;
         }
         
-        /* 💡 1マスの高さを「デフォルトで2行分（26px）」に引き伸ばして縦をA3満杯にする */
         .week-print-table th, .week-print-table td {
             font-size: 11px !important; 
             padding: 2px 1px !important;
-            height: 26px !important; /* デフォルトでしっかり2行分の高さを確保 */
+            height: 26px !important; /* デフォルトで2行分の高さを確保 */
             line-height: 1.1 !important;
             border: 1px solid #000 !important;
         }
@@ -324,7 +322,7 @@ if uploaded_file is not None:
                         st.markdown("<div style='height: 467px;'></div>", unsafe_allow_html=True)
 
     # ────────────────────────────────────────────────────────
-    # タブ2：1週間表示（★印刷指定エリア）
+    # タブ2：1週間表示（★タイトル項目を削って完全上詰め）
     # ────────────────────────────────────────────────────────
     with view_mode[1]:
         if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
@@ -351,7 +349,7 @@ if uploaded_file is not None:
         
         h_sheet = []
         h_sheet.append("<div class='print-target'>")
-        h_sheet.append(f"<h3 style='text-align:center; margin: 5px 0; font-family:sans-serif;'>📅 {target_month}月 週間シフト配置表 ({weeks_list[st.session_state.current_week_idx]})</h3>")
+        # 💡 タイトル文字列項目を完全削除（印刷余白を使い切るため）
         
         h_sheet.append("<table class='calendar-table week-print-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
         h_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold;'>")
