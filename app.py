@@ -128,7 +128,7 @@ def apply_fixed_service_schedule(calendar_data, target_year, target_month):
         (11, 30, "木村fh", "s2", "木", "#ff64c8"),
         (12, 30, "貝森c", "s2", "木", "#ffff00"),
         (13, 0, "石田sw", "s2", "木", None),
-        (13, 30, "〃", "s2", "木", None"),
+        (13, 30, "〃", "s2", "木", None),
         (14, 0, "御前sw", "s2", "木", None),
         (14, 30, "〃", "s2", "木", None),
         # --- 金 ---
