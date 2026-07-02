@@ -70,7 +70,7 @@ def apply_fixed_service_schedule(calendar_data, target_year, target_month):
         # --- 木 ---
         (10, 0, "脇坂sw", "s1", "木", None),
         (10, 30, "〃", "s1", "木", None),
-        (11, 0, "貝森b", "s1", "木", "#ffff00),
+        (11, 0, "貝森b", "s1", "木", "#ffff00"),
         (11, 30, "〃", "s1", "木", "#ffff00"),
         (13, 0, "邦洋sw", "s1", "木", None),
         (13, 30, "〃", "s1", "木", None),
