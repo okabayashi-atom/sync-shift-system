@@ -471,100 +471,16 @@ def make_html_table_with_time(day_schedule, font_size="11px", padding="3px", is_
             bg_color_h = get_bg(val_h, h_key)
             html.append(f"<td style='border-left: 1px solid #ccc; border-right: 1px solid #ccc; background-color: #ffffff; {td_p_style} {line_h_style}'>{wrap_name(val_s, '')}</td>")
             html.append(f"<td style='border-left: 1px solid #ccc; border-right: 1px solid #333; font-weight: bold; background-color: {bg_color_h}; {td_p_style} {line_h_style}'>{wrap_name(val_h, h_key)}</td>")
+        for s_key, h_key in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
+            val_s = row_data[s_key]
+            val_h = row_data[h_key]
+            bg_color_s = row_data.get(f"{s_key}_color", "#ffffff")
+            bg_color_h = get_bg(val_h, h_key)
+            html.append(f"<td style='border-left: 1px solid #ccc; border-right: 1px solid #ccc; background-color: {bg_color_s}; {td_p_style} {line_h_style}'>{wrap_name(val_s, '')}</td>")
+            html.append(f"<td style='border-left: 1px solid #ccc; border-right: 1px solid #333; font-weight: bold; background-color: {bg_color_h}; {td_p_style} {line_h_style}'>{wrap_name(val_h, h_key)}</td>")
         html.append("</tr>")
     html.append("</table>")
     return "".join(html)
-
-if uploaded_file is not None:
-    view_mode = st.tabs(["📊 1ヶ月表示（カレンダー）", "📅 1週間表示（時間軸スリム）", "🔍 1日集中表示"])
-
-    # ────────────────────────────────────────────────────────
-    # タブ1：1ヶ月表示
-    # ────────────────────────────────────────────────────────
-    with view_mode[0]:
-        st.components.v1.html('<button onclick="parent.window.print();" style="width:100%; height:42px; background-color:#1c83e1; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🖨️ 1ヶ月分印刷プレビュー</button>', height=45)
-
-        weekdays = ["日", "月", "火", "水", "木", "金", "土"]
-        header_cols = st.columns(7)
-        for i, day in enumerate(weekdays):
-            color = '#ff4b4b' if day == '日' else '#1c83e1' if day == '土' else '#333333'
-            header_cols[i].markdown(f"<h3 style='text-align: center; color: {color}; margin: 0;'>{day}</h3>", unsafe_allow_html=True)
-        st.write("---")
-
-        day_pointer = 1
-        for week in range(6):
-            if day_pointer > max_days: break
-            row_cols = st.columns(7)
-            for day_of_week in range(7):
-                current_cell_idx = week * 7 + day_of_week
-                with row_cols[day_of_week]:
-                    if start_offset <= current_cell_idx and day_pointer <= max_days:
-                        st.markdown(f"<h4 style='margin: 0 0 5px 0;'><b>{day_pointer}日</b></h4>", unsafe_allow_html=True)
-                        table_html = make_html_table_with_time(calendar_data[day_pointer], font_size="9px", padding="1px", is_large=False)
-                        st.html(f"<div style='border: 1px solid #999; height: 430px; overflow-y: auto; background-color: #ffffff;'>{table_html}</div>")
-                        day_pointer += 1
-                    else:
-                        st.markdown("<div style='height: 467px;'></div>", unsafe_allow_html=True)
-
-    # ────────────────────────────────────────────────────────
-    # タブ2：1週間表示
-    # ────────────────────────────────────────────────────────
-    with view_mode[1]:
-        if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
-        weeks_list = ["第1週 (1日〜)", "第2週", "第3週", "第4週", "第5週", "第6週"]
-        
-        b_col1, b_col2, b_col3 = st.columns([1, 3, 1])
-        with b_col1:
-            if st.button("← 前の週", use_container_width=True, key="p_wk_k"):
-                if st.session_state.current_week_idx > 0: st.session_state.current_week_idx -= 1
-        with b_col3:
-            if st.button("次の週 →", use_container_width=True, key="n_wk_k"):
-                if st.session_state.current_week_idx < len(weeks_list) - 1: st.session_state.current_week_idx += 1
-        with b_col2:
-            week_option = st.selectbox("週選択", options=weeks_list, index=st.session_state.current_week_idx)
-            st.session_state.current_week_idx = weeks_list.index(week_option)
-        st.write("---")
-        
-        st.components.v1.html("""
-            <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ この週間シフト表を印刷（自動1枚収め設定）</button>
-        """, height=50)
-        
-        start_d = st.session_state.current_week_idx * 7 + 1 - start_offset
-        weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
-        
-        h_sheet = []
-        h_sheet.append("<div class='print-target'>")
-        
-        h_sheet.append("<table class='calendar-table week-print-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
-        h_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold;'>")
-        h_sheet.append("<td class='time-col' style='width: 4.2%; padding: 4px 0;'>時間</td>")
-        
-        for d_o_w in range(7):
-            cur_d = start_d + d_o_w
-            c_color = '#ff4b4b' if d_o_w == 0 else '#1c83e1' if d_o_w == 6 else '#333333'
-            if 1 <= cur_d <= max_days:
-                h_sheet.append(f"<td colspan='6' style='color: {c_color}; font-size: 12px; width: 13.68%;'>{weekdays_labels[d_o_w]} ({cur_d}日)</td>")
-            else:
-                h_sheet.append(f"<td colspan='6' style='color: #aaa; background-color: #fafafa; width: 13.68%;'>{weekdays_labels[d_o_w]} (外)</td>")
-        h_sheet.append("</tr>")
-        
-        h_sheet.append("<tr style='background-color: #f9f9f9; font-size: 9px; height: 14px;'><td style='font-weight:bold; padding:0;'>-</td>")
-        for _ in range(7):
-            h_sheet.append("<td style='width:1.8%; padding:0;'>サ1</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ1</td>")
-            h_sheet.append("<td style='width:1.8%; padding:0;'>サ2</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ2</td>")
-            h_sheet.append("<td style='width:1.8%; padding:0;'>サ3</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ3</td>")
-        h_sheet.append("</tr>")
-        
-        r_list = []
-        for hour in hours_sequence:
-            r_list.append((f"{hour}:00", True))
-            r_list.append(("0:30" if hour == 0 else f"{hour}:30", False))
-            
-        for idx, (t_str, is_even) in enumerate(r_list):
-            b_style = "border-bottom:1px solid #333;" if not is_even else "border-bottom:1px dashed #ccc;"
-            h_sheet.append(f"<tr style='{b_style}'><td class='time-col' style='background-color:#f2f2f2;'>{t_str}</td>")
-            
-            for d_o_w in range(7):
                 cur_d = start_d + d_o_w
                 if 1 <= cur_d <= max_days:
                     ds = calendar_data[cur_d]
@@ -573,37 +489,17 @@ if uploaded_file is not None:
                     for sk, hk in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
                         h_sheet.append(f"<td style='background-color:#fff;'>{wrap_name(rd[sk], '')}</td>")
                         h_sheet.append(f"<td style='font-weight:bold; background-color:{get_bg(rd[hk], hk)};'>{wrap_name(rd[hk], hk)}</td>")
+                    h_num = int(t_str.split(":")[0])
+                    rd = ds[h_num]["row1" if t_str.endswith(":00") else "row2"]
+                    for sk, hk in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
+                        bg_color_s = rd.get(f"{sk}_color", "#ffffff")
+                        h_sheet.append(f"<td style='background-color:{bg_color_s};'>{wrap_name(rd[sk], '')}</td>")
+                        h_sheet.append(f"<td style='font-weight:bold; background-color:{get_bg(rd[hk], hk)};'>{wrap_name(rd[hk], hk)}</td>")
                 else:
                     h_sheet.append("<td colspan='6' style='background-color: #fafafa; opacity:0.1;'></td>")
             h_sheet.append("</tr>")
-        h_sheet.append("</table>")
-        h_sheet.append("</div>")
-        
-        st.html(f"<div style='border: 1px solid #999; background-color: #ffffff; border-radius: 6px; padding: 5px;'>{''.join(h_sheet)}</div>")
-
-    # ────────────────────────────────────────────────────────
-    # タブ3：1日集中表示
-    # ────────────────────────────────────────────────────────
-    with view_mode[2]:
-        if 'current_day_val' not in st.session_state: st.session_state.current_day_val = 1
-        d_col1, d_col2, d_col3 = st.columns([1, 3, 1])
-        with d_col1:
-            if st.button("← 前の日", use_container_width=True, key="p_d_b"):
-                if st.session_state.current_day_val > 1: st.session_state.current_day_val -= 1
-        with d_col3:
-            if st.button("次の日 →", use_container_width=True, key="n_d_b"):
-                if st.session_state.current_day_val < max_days: st.session_state.current_day_val += 1
-        with d_col2:
-            st.session_state.current_day_val = st.slider("日選択スライダー", min_value=1, max_value=max_days, value=st.session_state.current_day_val, key="d_sld")
-        st.write("---")
-        
-        try:
-            this_date = datetime.date(target_year, target_month, st.session_state.current_day_val)
-            wd_str = ["月", "火", "水", "木", "金", "土", "日"][this_date.weekday()]
-        except: wd_str = ""
-            
-        st.components.v1.html('<button onclick="parent.window.print();" style="width:100%; height:42px; background-color:#4CAF50; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🖨️ この日の詳細を印刷</button>', height=45)
 
         st.markdown(f"<h2 style='text-align: center; color: #1c83e1;'>🔍 {target_month}月 {st.session_state.current_day_val}日 ({wd_str}) の詳細</h2>", unsafe_allow_html=True)
         day_table_html = make_html_table_with_time(calendar_data[st.session_state.current_day_val], font_size="15px", padding="6px", is_large=True)
+        st.html(f"<div style='max-width: 650px; margin: 0 auto; border: 2px solid #1c83e1; background-color: #ffffff; border-radius: 8px; padding: 10px;'>{day_table_html}</div>")
         st.html(f"<div style='max-width: 650px; margin: 0 auto; border: 2px solid #1c83e1; background-color: #ffffff; border-radius: 8px; padding: 10px;'>{day_table_html}</div>")
