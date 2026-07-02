@@ -18,8 +18,8 @@ def apply_fixed_service_schedule(calendar_data, target_year, target_month):
 
     schedules = [
         # ーーー 共通 ーーー
-        (7, 0, "越智f", "s1", "全", "#fff700"),
-        (7, 30, "八子mh", "s1", "全", "#ffffff"),
+        (7, 0, "越智f", "s1", "全", "#e81123"),
+        (7, 30, "八子mh", "s1", "全", "#e81123"),
         (8, 0, "木村fh", "s1", "全", "#000000"),
         (12, 0, "越智h", "s1", "全", "#ffff00"),
         (12, 30, "八子h", "s1", "全", "#ffff00"),
