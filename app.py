@@ -469,7 +469,7 @@ def generate_weekly_html_table(start_d, max_days, target_year, target_month, cal
                 else:
                     for _ in range(3):
                         h_sheet.append(f"<td style='background-color: #fafafa; border-right: 1px solid #ccc;'></td>")
-                        h_sheet.append(f"<td style='background-color: #fafafa; {day_border_right if _==2 else \"border-right: 1px solid #ccc;\"}'></td>")
+                        h_sheet.append(f"<td style='background-color: #fafafa; {day_border_right if _==2 else 'border-right: 1px solid #ccc;'}'></td>")
             h_sheet.append("</tr>")
             
     h_sheet.append("</table>")
