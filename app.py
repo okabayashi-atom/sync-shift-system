@@ -228,32 +228,54 @@ def apply_fixed_service_schedule(calendar_data, target_year, target_month):
 
 
 # ────────────────────────────────────────────────────────
-# 📌 共通パーツ、画面表示
+# 📌 共通パーツ、画面表示＆印刷の余白カットスタイル設定
 # ────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @media print {
-    body * { visibility: hidden; }
-    .print-target, .print-target * { visibility: visible !important; }
-    .print-target {
-        position: relative !important;
-        width: 100% !important;
-        margin: 10mm auto 0 auto !important;
+    /* 画面上の通常要素、ヘッダー、メニューなどはすべて完全に隠す */
+    body, html, [data-testid="stHeader"], [data-testid="stSidebar"], .stTabs, button {
+        visibility: hidden !important;
+        height: 0 !important;
+        margin: 0 !important;
         padding: 0 !important;
-        transform: scale(1.0) !important;
-        transform-origin: top center !important;
-        page-break-inside: avoid !important;
     }
-    @page { size: A3 landscape; margin: 10mm !important; }
-    .week-print-table { border: 2px solid #000 !important; width: 100% !important; }
+    /* 印刷対象のコンテナだけを表示して全体に広げる */
+    .print-target, .print-target * { 
+        visibility: visible !important; 
+    }
+    .print-target {
+        position: absolute !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        page-break-inside: avoid !important;
+        page-break-after: avoid !important;
+    }
+    /* A3横サイズ指定、余白を上下左右5ミリに極小化して1枚に強制収める */
+    @page { 
+        size: A3 landscape; 
+        margin: 5mm 5mm 5mm 5mm !important; 
+    }
+    /* 週間テーブルの文字サイズと行高を極限まで詰めて1ページに収める */
+    .week-print-table { 
+        border: 2px solid #000 !important; 
+        width: 100% !important; 
+        table-layout: fixed !important;
+    }
     .week-print-table th, .week-print-table td {
-        font-size: 11px !important;
-        padding: 2px 1px !important;
-        height: 24px !important;
-        line-height: 1.1 !important;
+        font-size: 10px !important;
+        padding: 1px 1px !important;
+        height: 19px !important;
+        line-height: 1.0 !important;
         border: 1px solid #000 !important;
     }
-    .week-print-table .time-col { font-size: 10px !important; font-weight: bold !important; }
+    .week-print-table .time-col { 
+        font-size: 9px !important; 
+        font-weight: bold !important; 
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -406,13 +428,13 @@ def wrap_name(val, h_type):
 
 
 # ────────────────────────────────────────────────────────
-# 📌 週間予定表作成関数 (★23:30以降を1行にまとめるよう大改造)
+# 📌 週間予定表作成関数 (23:30以降を1行にまとめてスリム化)
 # ────────────────────────────────────────────────────────
 def generate_weekly_html_table(start_d, max_days, target_year, target_month, calendar_data):
-    td_p_style = "padding: 1px 2px !important; font-size: 11px !important; height: 16px !important;"
+    td_p_style = "padding: 1px 2px !important; font-size: 10px !important; height: 16px !important;"
     line_h_style = "line-height: 1.0 !important;"
     
-    # 5:00から23:00までのループ用時間（23:30以降は一括処理するため除外）
+    # 5:00から23:00までのループ用時間（23:30以降はまとめて1行にするため除外）
     hours_sequence = list(range(5, 23)) 
     
     weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
@@ -459,7 +481,7 @@ def generate_weekly_html_table(start_d, max_days, target_year, target_month, cal
             late_slots = [
                 (23, "row2"),             # 23:30
                 (0, "row1"), (0, "row2"),   # 0:00, 0:30
-                (24, "row1"), (24, "row2")  # 念のための予備24時
+                (24, "row1"), (24, "row2")  # 予備24時
             ]
             
             for lh, lr_key in late_slots:
@@ -585,7 +607,7 @@ if uploaded_file is not None:
         st.markdown("".join(html), unsafe_allow_html=True)
 
     # ────────────────────────────────────────────────────────
-    # タブ2：1週間表示（★修正版関数を呼び出し）
+    # タブ2：1週間表示
     # ────────────────────────────────────────────────────────
     with view_mode[1]:
         st.components.v1.html('<button onclick="parent.window.print();" style="width:100%; height:42px; background-color:#ff9800; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🖨️ 選択中の週を印刷プレビュー</button>', height=45)
@@ -604,7 +626,7 @@ if uploaded_file is not None:
         st.write("---")
         st.markdown(f"<h3 style='text-align: center; margin-bottom: 15px;'>令和8年6月 週間予定表 ({sel_w[1]})</h3>", unsafe_allow_html=True)
         
-        # 修正された週表示関数を実行して描画
+        # 週表示関数を実行して描画
         weekly_html = generate_weekly_html_table(sel_w[2], max_days, target_year, target_month, calendar_data)
         st.markdown(weekly_html, unsafe_allow_html=True)
 
@@ -624,7 +646,7 @@ if uploaded_file is not None:
                 if st.session_state.current_day_val < max_days: st.session_state.current_day_val += 1
         with d_col2:
             st.session_state.current_day_val = st.slider("日選択スライダー", min_value=1, max_value=max_days, value=st.session_state.current_day_val, key="d_sld")
-        st.write("---\")
+        st.write("---")
         
         try:
             this_date = datetime.date(target_year, target_month, st.session_state.current_day_val)
@@ -647,7 +669,6 @@ if uploaded_file is not None:
         single_html.append("<td style='border:1px solid #333; width:30%; background-color:#fce4d6;'>サービス 3 (サ3 / ヘ3)</td>")
         single_html.append("</tr>")
         
-        # 1日表示は従来どおりすべての時間軸を細かく確認できるようにしています
         full_hours = list(range(5, 24)) + [0]
         for h in full_hours:
             for r_k, label_ext in [("row1", ":00"), ("row2", ":30")]:
