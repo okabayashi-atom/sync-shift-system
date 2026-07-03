@@ -228,19 +228,19 @@ def apply_fixed_service_schedule(calendar_data, target_year, target_month):
 
 
 # ────────────────────────────────────────────────────────
-# 📌 共通パーツ、画面表示＆印刷の余白カットスタイル設定
+# 📌 共通パーツ、印刷位置の調整（余白カット用スタイル）
 # ────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @media print {
-    /* 画面上の通常要素、ヘッダー、メニューなどはすべて完全に隠す */
+    /* 印刷対象（print-target）以外の不要なUIや余白を完全に非表示にする */
     body, html, [data-testid="stHeader"], [data-testid="stSidebar"], .stTabs, button {
         visibility: hidden !important;
         height: 0 !important;
         margin: 0 !important;
         padding: 0 !important;
     }
-    /* 印刷対象のコンテナだけを表示して全体に広げる */
+    /* 印刷したいメイン部分だけを1ページ目の最上部に強制表示 */
     .print-target, .print-target * { 
         visibility: visible !important; 
     }
@@ -253,28 +253,6 @@ st.markdown("""
         padding: 0 !important;
         page-break-inside: avoid !important;
         page-break-after: avoid !important;
-    }
-    /* A3横サイズ指定、余白を上下左右5ミリに極小化して1枚に強制収める */
-    @page { 
-        size: A3 landscape; 
-        margin: 5mm 5mm 5mm 5mm !important; 
-    }
-    /* 週間テーブルの文字サイズと行高を極限まで詰めて1ページに収める */
-    .week-print-table { 
-        border: 2px solid #000 !important; 
-        width: 100% !important; 
-        table-layout: fixed !important;
-    }
-    .week-print-table th, .week-print-table td {
-        font-size: 10px !important;
-        padding: 1px 1px !important;
-        height: 19px !important;
-        line-height: 1.0 !important;
-        border: 1px solid #000 !important;
-    }
-    .week-print-table .time-col { 
-        font-size: 9px !important; 
-        font-weight: bold !important; 
     }
 }
 </style>
@@ -428,32 +406,30 @@ def wrap_name(val, h_type):
 
 
 # ────────────────────────────────────────────────────────
-# 📌 週間予定表作成関数 (23:30以降を1行にまとめてスリム化)
+# 📌 週間予定表作成関数
 # ────────────────────────────────────────────────────────
 def generate_weekly_html_table(start_d, max_days, target_year, target_month, calendar_data):
-    td_p_style = "padding: 1px 2px !important; font-size: 10px !important; height: 16px !important;"
-    line_h_style = "line-height: 1.0 !important;"
+    td_p_style = "padding: 3px 2px;"
+    line_h_style = "line-height: 1.1;"
     
-    # 5:00から23:00までのループ用時間（23:30以降はまとめて1行にするため除外）
-    hours_sequence = list(range(5, 23)) 
-    
+    hours_sequence = list(range(5, 24)) + [0]
     weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
     h_sheet = []
     h_sheet.append("<div class='print-target'>")
-    h_sheet.append("<table class='calendar-table week-print-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
+    h_sheet.append("<table class='calendar-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
     h_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold;'>")
-    h_sheet.append("<td class='time-col' style='width: 4.2%; padding: 4px 0;'>時間</td>")
+    h_sheet.append("<td style='width: 5%; padding: 6px 0;'>時間</td>")
     
     for d_o_w in range(7):
         cur_d = start_d + d_o_w
         c_color = '#ff4b4b' if d_o_w == 0 else '#1c83e1' if d_o_w == 6 else '#333333'
         if 1 <= cur_d <= max_days:
-            h_sheet.append(f"<td colspan='6' style='color: {c_color}; font-size: 12px; width: 13.68%;'>{weekdays_labels[d_o_w]} ({cur_d}日)</td>")
+            h_sheet.append(f"<td colspan='6' style='color: {c_color}; font-size: 13px;'>{weekdays_labels[d_o_w]} ({cur_d}日)</td>")
         else:
-            h_sheet.append(f"<td colspan='6' style='color: #ccc; font-size: 12px; width: 13.68%;'>{weekdays_labels[d_o_w]} (-)</td>")
+            h_sheet.append(f"<td colspan='6' style='color: #ccc; font-size: 13px;'>{weekdays_labels[d_o_w]} (-)</td>")
     h_sheet.append("</tr>")
     
-    h_sheet.append("<tr style='background-color: #f9f9f9; font-size: 10px; font-weight: bold;'>")
+    h_sheet.append("<tr style='background-color: #f9f9f9; font-size: 11px; font-weight: bold;'>")
     h_sheet.append("<td style='border-right: 1px solid #333;'></td>")
     for _ in range(7):
         h_sheet.append("<td colspan='2' style='border-right: 1px solid #ccc; color:#2e7d32;'>サ1</td>")
@@ -461,89 +437,41 @@ def generate_weekly_html_table(start_d, max_days, target_year, target_month, cal
         h_sheet.append("<td colspan='2' style='border-right: 1px solid #333; color:#1565c0;'>サ3</td>")
     h_sheet.append("</tr>")
     
-    # ─── 曜日毎に「時間軸の行データ」を前もって構築 ───
-    day_rows_data = {}
-    for d_o_w in range(7):
-        cur_d = start_d + d_o_w
-        rows_list = []
-        
-        if 1 <= cur_d <= max_days:
-            day_schedule = calendar_data[cur_d]
-            # 1. 5:00 から 23:00 までの通常の30分刻みデータを詰め込む
-            for hour in hours_sequence:
-                rows_list.append((f"{hour}:00", day_schedule[hour]["row1"]))
-                rows_list.append((f"{hour}:30", day_schedule[hour]["row2"]))
+    for hour in hours_sequence:
+        for r_key, label_ext in [("row1", ":00"), ("row2", ":30")]:
+            t_label = "0:30" if hour == 0 and label_ext == ":30" else f"{hour}{label_ext}"
             
-            # 2. ★ 23:00 の「後半（23:30）」と、24:00(0:00)以降の全データを1つの「23:30〜」に統合
-            late_merged_row = {"s1": "", "h1": "", "s2": "", "h2": "", "s3": "", "h3": ""}
-            
-            # 統合対象の枠をすべて巡回
-            late_slots = [
-                (23, "row2"),             # 23:30
-                (0, "row1"), (0, "row2"),   # 0:00, 0:30
-                (24, "row1"), (24, "row2")  # 予備24時
-            ]
-            
-            for lh, lr_key in late_slots:
-                for k in late_merged_row.keys():
-                    val = day_schedule[lh][lr_key].get(k, "")
-                    if val and val != "┃" and not late_merged_row[k]:
-                        late_merged_row[k] = val
-                    # 色の引き継ぎ
-                    color_val = day_schedule[lh][lr_key].get(f"{k}_color", "")
-                    if color_val and not late_merged_row.get(f"{k}_color"):
-                        late_merged_row[f"{k}_color"] = color_val
-            
-            rows_list.append(("23:30〜", late_merged_row))
-        else:
-            # 枠外の日の空データ
-            empty_row = {"s1": "", "h1": "", "s2": "", "h2": "", "s3": "", "h3": ""}
-            for hour in hours_sequence:
-                rows_list.append((f"{hour}:00", empty_row))
-                rows_list.append((f"{hour}:30", empty_row))
-            rows_list.append(("23:30〜", empty_row))
-            
-        day_rows_data[d_o_w] = rows_list
-
-    # 総行数（5:00〜23:00の36行 + 23:30〜の1行 = 計37行）
-    total_rows = len(day_rows_data[0])
-    
-    # ─── HTMLテーブルの組み立て（行単位） ───
-    for r_idx in range(total_rows):
-        time_label = day_rows_data[0][r_idx][0]
-        
-        # 罫線の装飾調整
-        if time_label == "23:30〜":
-            border_bottom_style = "border-bottom: 2px solid #000;"
-        else:
-            is_dash = time_label.endswith(":00")
+            is_dash = label_ext == ":00"
             border_bottom_style = "border-bottom: 1px dashed #ddd;" if is_dash else "border-bottom: 1px solid #333;"
             
-        h_sheet.append(f"<tr style='{border_bottom_style} height: 18px;'>")
-        h_sheet.append(f"<td class='time-col' style='border-right: 1px solid #333; border-left: 1px solid #ccc; background-color: #f9f9f9; font-weight: bold; padding: 2px 0;'>{time_label}</td>")
-        
-        # 各曜日の該当行のデータを横に並べる
-        for d_o_w in range(7):
-            _, row_data = day_rows_data[d_o_w][r_idx]
+            h_sheet.append(f"<tr style='{border_bottom_style} height: 24px;'>")
+            h_sheet.append(f"<td style='border-right: 1px solid #333; border-left: 1px solid #ccc; background-color: #f9f9f9; font-weight: bold; font-size: 11px;'>{t_label}</td>")
             
-            # 右側境界線
-            day_border_right = "border-right: 1px solid #ccc;" if d_o_w < 6 else "border-right: 1px solid #333;"
+            for d_o_w in range(7):
+                cur_d = start_d + d_o_w
+                day_border_right = "border-right: 1px solid #ccc;" if d_o_w < 6 else "border-right: 1px solid #333;"
+                
+                if 1 <= cur_d <= max_days:
+                    row_data = calendar_data[cur_d][hour][r_key]
+                    
+                    for s_key, h_key in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
+                        val_s = row_data[s_key]
+                        val_h = row_data[h_key]
+                        bg_color_s = row_data.get(f"{s_key}_color", "#ffffff")
+                        bg_color_h = get_bg(val_h, h_key)
+                        
+                        h_border_right = "border-right: 1px solid #333;" if s_key == "s3" else "border-right: 1px solid #ccc;"
+                        if s_key == "s3":
+                            h_border_right = day_border_right
+                        
+                        h_sheet.append(f"<td style='border-left: 1px solid #ccc; border-right: 1px solid #ccc; background-color: {bg_color_s}; {td_p_style} {line_h_style} font-size:11px;'>{wrap_name(val_s, '')}</td>")
+                        h_sheet.append(f"<td style='border-left: 1px solid #ccc; {h_border_right} font-weight: bold; background-color: {bg_color_h}; {td_p_style} {line_h_style} font-size:11px;'>{wrap_name(val_h, h_key)}</td>")
+                else:
+                    for _ in range(3):
+                        h_sheet.append(f"<td style='background-color: #fafafa; border-right: 1px solid #ccc;'></td>")
+                        h_sheet.append(f"<td style='background-color: #fafafa; {day_border_right if _==2 else \"border-right: 1px solid #ccc;\"}'></td>")
+            h_sheet.append("</tr>")
             
-            for s_key, h_key in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
-                val_s = row_data[s_key]
-                val_h = row_data[h_key]
-                bg_color_s = row_data.get(f"{s_key}_color", "#ffffff")
-                bg_color_h = get_bg(val_h, h_key)
-                
-                # サブ境界線の設定
-                h_border_right = "border-right: 1px solid #333;" if s_key == "s3" else "border-right: 1px solid #ccc;"
-                if s_key == "s3":
-                    h_border_right = day_border_right
-                
-                h_sheet.append(f"<td style='border-left: 1px solid #ccc; border-right: 1px solid #ccc; background-color: {bg_color_s}; {td_p_style} {line_h_style}'>{wrap_name(val_s, '')}</td>")
-                h_sheet.append(f"<td style='border-left: 1px solid #ccc; {h_border_right} font-weight: bold; background-color: {bg_color_h}; {td_p_style} {line_h_style}'>{wrap_name(val_h, h_key)}</td>")
-        h_sheet.append("</tr>")
-        
     h_sheet.append("</table>")
     h_sheet.append("</div>")
     return "".join(h_sheet)
@@ -553,7 +481,7 @@ def generate_weekly_html_table(start_d, max_days, target_year, target_month, cal
 # 📌 メイン表示ロジック
 # ────────────────────────────────────────────────────────
 if uploaded_file is not None:
-    view_mode = st.tabs(["📊 1ヶ月表示（カレンダー）", "📅 1週間表示（時間軸スリム）", "🔍 1日集中表示"])
+    view_mode = st.tabs(["📊 1ヶ月表示（カレンダー）", "📅 1週間表示", "🔍 1日集中表示"])
 
     # ────────────────────────────────────────────────────────
     # タブ1：1ヶ月表示
@@ -561,7 +489,6 @@ if uploaded_file is not None:
     with view_mode[0]:
         st.components.v1.html('<button onclick="parent.window.print();" style="width:100%; height:42px; background-color:#1c83e1; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🖨️ 1ヶ月分印刷プレビュー</button>', height=45)
         
-        # カレンダー描画ロジック
         weekdays = ["日", "月", "火", "水", "木", "金", "土"]
         html = []
         html.append("<div class='print-target'>")
@@ -586,7 +513,6 @@ if uploaded_file is not None:
                     html.append(f"<td style='border:1px solid #ccc; background-color:{bg_cell}; padding:3px; vertical-align:top;'>")
                     html.append(f"<div style='font-weight:bold; margin-bottom:4px; font-size:13px;'>{day_cursor}</div>")
                     
-                    # 簡易サマリー表示
                     day_sched = calendar_data[day_cursor]
                     active_staffs = set()
                     for hour in range(0, 25):
@@ -626,7 +552,6 @@ if uploaded_file is not None:
         st.write("---")
         st.markdown(f"<h3 style='text-align: center; margin-bottom: 15px;'>令和8年6月 週間予定表 ({sel_w[1]})</h3>", unsafe_allow_html=True)
         
-        # 週表示関数を実行して描画
         weekly_html = generate_weekly_html_table(sel_w[2], max_days, target_year, target_month, calendar_data)
         st.markdown(weekly_html, unsafe_allow_html=True)
 
