@@ -269,7 +269,7 @@ def apply_fixed_service_schedule(calendar_data, target_year, target_month):
                         last_name = None
 
 # ────────────────────────────────────────────────────────
-# 📌 UI・デザイン用CSS
+# 🖨️ UI・デザイン用CSS
 # ────────────────────────────────────────────────────────
 st.markdown("""
     <style>
@@ -298,22 +298,27 @@ st.markdown("""
     @media print {
         body * { visibility: hidden !important; }
         .print-target, .print-target * { visibility: visible !important; }
+        
         .print-target {
-            position: relative !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
             width: 100% !important;
-            margin: 10mm auto 0 auto !important;
+            margin: 0 !important;
             padding: 0 !important;
-            transform: scale(1.0) !important; 
-            transform-origin: top center !important;
+            page-break-before: avoid !important;
             page-break-inside: avoid !important;
         }
-        @page { size: A3 landscape; margin: 10mm !important; }
+        @page { 
+            size: A3 landscape; 
+            margin: 8mm !important; 
+        }
         .week-print-table { border: 2px solid #000 !important; width: 100% !important; }
         .week-print-table th, .week-print-table td {
-            font-size: 11px !important; 
-            padding: 2px 1px !important;
-            height: 24px !important; 
-            line-height: 1.1 !important;
+            font-size: 10.5px !important; 
+            padding: 1px 1px !important;
+            height: 22px !important; 
+            line-height: 1.05 !important;
             border: 1px solid #000 !important;
         }
         .week-print-table .time-col { font-size: 10px !important; font-weight: bold !important; }
@@ -394,7 +399,7 @@ if uploaded_file is not None:
                     elif is_yoru:
                         assigned_h = "h1"
                         start_hour, start_min = 17, 0
-                        end_hour, end_min = 21, 0
+                        end_hour, end_min = 23, 0  # ⏰ 夜勤の終了時間を21時から23時へ変更
 
                     if assigned_h and start_hour is not None and end_hour is not None:
                         current_time = datetime.datetime(2026, 1, 1, start_hour, start_min)
@@ -451,15 +456,12 @@ def make_html_table_with_time(day_schedule, font_size="11px", padding="3px", is_
     html.append("</tr>")
     
     rows_list = []
-    # 5:00から23:00までの通常枠
     for hour in range(5, 23):
         rows_list.append((f"{hour}:00", day_schedule[hour]["row1"]))
         rows_list.append((f"{hour}:30", day_schedule[hour]["row2"]))
     
-    # 23:00枠を追加
     rows_list.append(("23:00", day_schedule[23]["row1"]))
     
-    # 23:30以降（23:30、0:00、0:30）のデータをマージして1行に集約
     late_row = day_schedule[23]["row2"].copy()
     for r_k in ["row1", "row2"]:
         for k in ["s1", "h1", "s2", "h2", "s3", "h3"]:
@@ -492,9 +494,6 @@ def make_html_table_with_time(day_schedule, font_size="11px", padding="3px", is_
 if uploaded_file is not None:
     view_mode = st.tabs(["📊 1ヶ月表示（カレンダー）", "📅 1週間表示（時間軸スリム）", "🔍 1日集中表示"])
 
-    # ────────────────────────────────────────────────────────
-    # タブ1：1ヶ月表示
-    # ────────────────────────────────────────────────────────
     with view_mode[0]:
         st.components.v1.html('<button onclick="parent.window.print();" style="width:100%; height:42px; background-color:#1c83e1; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🖨️ 1ヶ月分印刷プレビュー</button>', height=45)
 
@@ -520,9 +519,6 @@ if uploaded_file is not None:
                     else:
                         st.markdown("<div style='height: 467px;'></div>", unsafe_allow_html=True)
 
-    # ────────────────────────────────────────────────────────
-    # タブ2：1週間表示
-    # ────────────────────────────────────────────────────────
     with view_mode[1]:
         if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
         weeks_list = ["第1週 (1日〜)", "第2週", "第3週", "第4週", "第5週", "第6週"]
@@ -608,9 +604,6 @@ if uploaded_file is not None:
         
         st.html(f"<div style='border: 1px solid #999; background-color: #ffffff; border-radius: 6px; padding: 5px;'>{''.join(h_sheet)}</div>")
 
-    # ────────────────────────────────────────────────────────
-    # タブ3：1日集中表示
-    # ────────────────────────────────────────────────────────
     with view_mode[2]:
         if 'current_day_val' not in st.session_state: st.session_state.current_day_val = 1
         d_col1, d_col2, d_col3 = st.columns([1, 3, 1])
