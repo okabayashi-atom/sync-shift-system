@@ -300,7 +300,7 @@ st.markdown("""
         .print-target, .print-target * { visibility: visible !important; }
         
         .print-target {
-            position: absolute !important;
+            position: fixed !important;
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
@@ -308,6 +308,11 @@ st.markdown("""
             padding: 0 !important;
             page-break-before: avoid !important;
             page-break-inside: avoid !important;
+        }
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
         }
         @page { 
             size: A3 landscape; 
@@ -626,6 +631,6 @@ if uploaded_file is not None:
 
         st.markdown(f"<h2 style='text-align: center; color: #1c83e1;'>🔍 {target_month}月 {st.session_state.current_day_val}日 ({wd_str}) の詳細</h2>", unsafe_allow_html=True)
         day_table_html = make_html_table_with_time(calendar_data[st.session_state.current_day_val], font_size="15px", padding="6px", is_large=True)
-        st.html(f"<div style='max-width: 650px; margin: 0 auto; border: 2px solid #1c83e1; background-color: #ffffff; border-radius: 8px; padding: 10px;'>{day_table_html}</div>")
+        st.html(f"<div class='print-target' style='max-width: 650px; margin: 0 auto; border: 2px solid #1c83e1; background-color: #ffffff; border-radius: 8px; padding: 10px;'>{day_table_html}</div>")
 else:
     st.info("💡 左側のメニューから、解析元のシフトExcelファイルをアップロードしてください。")
