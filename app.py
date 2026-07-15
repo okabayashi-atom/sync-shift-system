@@ -496,35 +496,17 @@ def make_html_table_with_time(day_schedule, font_size="11px", padding="3px", is_
     html.append("</table>")
     return "".join(html)
 
+def get_era_label(year, month):
+    reiwa_year = year - 2018
+    era_str = f"R{reiwa_year}" if reiwa_year >= 1 else str(year)
+    return f"{era_str}.{month}月"
+
+era_label = get_era_label(target_year, target_month)
+
 if uploaded_file is not None:
-    view_mode = st.tabs(["📊 1ヶ月表示（カレンダー）", "📅 1週間表示（時間軸スリム）", "🔍 1日集中表示"])
+    view_mode = st.tabs(["📅 1週間表示（時間軸スリム）", "📊 1ヶ月表示（カレンダー）", "🔍 1日集中表示"])
 
     with view_mode[0]:
-        st.components.v1.html('<button onclick="parent.window.print();" style="width:100%; height:42px; background-color:#1c83e1; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🖨️ 1ヶ月分印刷プレビュー</button>', height=45)
-
-        weekdays = ["日", "月", "火", "水", "木", "金", "土"]
-        header_cols = st.columns(7)
-        for i, day in enumerate(weekdays):
-            color = '#ff4b4b' if day == '日' else '#1c83e1' if day == '土' else '#333333'
-            header_cols[i].markdown(f"<h3 style='text-align: center; color: {color}; margin: 0;'>{day}</h3>", unsafe_allow_html=True)
-        st.write("---")
-
-        day_pointer = 1
-        for week in range(6):
-            if day_pointer > max_days: break
-            row_cols = st.columns(7)
-            for day_of_week in range(7):
-                current_cell_idx = week * 7 + day_of_week
-                with row_cols[day_of_week]:
-                    if start_offset <= current_cell_idx and day_pointer <= max_days:
-                        st.markdown(f"<h4 style='margin: 0 0 5px 0;'><b>{day_pointer}日</b></h4>", unsafe_allow_html=True)
-                        table_html = make_html_table_with_time(calendar_data[day_pointer], font_size="9px", padding="1px", is_large=False)
-                        st.html(f"<div style='border: 1px solid #999; height: 430px; overflow-y: auto; background-color: #ffffff;'>{table_html}</div>")
-                        day_pointer += 1
-                    else:
-                        st.markdown("<div style='height: 467px;'></div>", unsafe_allow_html=True)
-
-    with view_mode[1]:
         if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
         weeks_list = ["第1週 (1日〜)", "第2週", "第3週", "第4週", "第5週", "第6週"]
         
@@ -549,6 +531,7 @@ if uploaded_file is not None:
         
         h_sheet = []
         h_sheet.append("<div class='print-target'>")
+        h_sheet.append(f"<div style='text-align:right; font-size:12px; font-weight:bold; color:#333; padding:0 2px 2px 0;'>{era_label}　第{st.session_state.current_week_idx + 1}週</div>")
         
         h_sheet.append("<table class='calendar-table week-print-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
         h_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold;'>")
@@ -608,6 +591,33 @@ if uploaded_file is not None:
         h_sheet.append("</div>")
         
         st.html(f"<div style='border: 1px solid #999; background-color: #ffffff; border-radius: 6px; padding: 5px;'>{''.join(h_sheet)}</div>")
+
+    with view_mode[1]:
+        st.components.v1.html('<button onclick="parent.window.print();" style="width:100%; height:42px; background-color:#1c83e1; color:white; border:none; border-radius:4px; cursor:pointer; font-weight:bold;">🖨️ 1ヶ月分印刷プレビュー</button>', height=45)
+
+        st.markdown(f"<div style='text-align:right; font-size:13px; font-weight:bold; color:#555; margin-bottom:2px;'>{era_label}</div>", unsafe_allow_html=True)
+
+        weekdays = ["日", "月", "火", "水", "木", "金", "土"]
+        header_cols = st.columns(7)
+        for i, day in enumerate(weekdays):
+            color = '#ff4b4b' if day == '日' else '#1c83e1' if day == '土' else '#333333'
+            header_cols[i].markdown(f"<h3 style='text-align: center; color: {color}; margin: 0;'>{day}</h3>", unsafe_allow_html=True)
+        st.write("---")
+
+        day_pointer = 1
+        for week in range(6):
+            if day_pointer > max_days: break
+            row_cols = st.columns(7)
+            for day_of_week in range(7):
+                current_cell_idx = week * 7 + day_of_week
+                with row_cols[day_of_week]:
+                    if start_offset <= current_cell_idx and day_pointer <= max_days:
+                        st.markdown(f"<h4 style='margin: 0 0 5px 0;'><b>{day_pointer}日</b></h4>", unsafe_allow_html=True)
+                        table_html = make_html_table_with_time(calendar_data[day_pointer], font_size="9px", padding="1px", is_large=False)
+                        st.html(f"<div style='border: 1px solid #999; height: 430px; overflow-y: auto; background-color: #ffffff;'>{table_html}</div>")
+                        day_pointer += 1
+                    else:
+                        st.markdown("<div style='height: 467px;'></div>", unsafe_allow_html=True)
 
     with view_mode[2]:
         if 'current_day_val' not in st.session_state: st.session_state.current_day_val = 1
