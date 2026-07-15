@@ -558,7 +558,8 @@ if uploaded_file is not None:
             r_list.append((f"{hour}:00", True))
             r_list.append((f"{hour}:30", False))
         r_list.append(("23:00", True))
-        r_list.append(("23:30以降", False))
+        r_list.append(("23:30", False))
+        r_list.append(("24:00", True))
             
         for idx, (t_str, is_even) in enumerate(r_list):
             b_style = "border-bottom:1px solid #333;" if not is_even else "border-bottom:1px dashed #ccc;"
@@ -568,14 +569,8 @@ if uploaded_file is not None:
                 cur_d = start_d + d_o_w
                 if 1 <= cur_d <= max_days:
                     ds = calendar_data[cur_d]
-                    if t_str == "23:30以降":
-                        rd = ds[23]["row2"].copy()
-                        for r_k in ["row1", "row2"]:
-                            for k in ["s1", "h1", "s2", "h2", "s3", "h3"]:
-                                if not rd[k] and ds[0][r_k][k]:
-                                    rd[k] = ds[0][r_k][k]
-                                if ds[0][r_k].get(f"{k}_color"):
-                                    rd[f"{k}_color"] = ds[0][r_k].get(f"{k}_color")
+                    if t_str == "24:00":
+                        rd = ds[0]["row1"]
                     else:
                         h_num = int(t_str.split(":")[0])
                         rd = ds[h_num]["row1" if t_str.endswith(":00") else "row2"]
