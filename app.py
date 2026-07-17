@@ -318,7 +318,7 @@ st.markdown("""
             size: A3 landscape; 
             margin: 8mm !important; 
         }
-        .week-print-table { border: 2px solid #000 !important; width: 100% !important; }
+        .week-print-table { border: 3px solid #000 !important; width: 100% !important; }
         .week-print-table th, .week-print-table td {
             font-size: 10.5px !important; 
             padding: 1px 1px !important;
@@ -327,6 +327,11 @@ st.markdown("""
             border: 1px solid #000 !important;
         }
         .week-print-table .time-col { font-size: 10px !important; font-weight: bold !important; }
+        /* 日付の区切り（各曜日の先頭列）の縦線を太く */
+        .week-print-table td.day-start,
+        .week-print-table th.day-start {
+            border-left: 3px solid #000 !important;
+        }
     }
     </style>
 """, unsafe_allow_html=True)
@@ -541,14 +546,14 @@ if uploaded_file is not None:
             cur_d = start_d + d_o_w
             c_color = '#ff4b4b' if d_o_w == 0 else '#1c83e1' if d_o_w == 6 else '#333333'
             if 1 <= cur_d <= max_days:
-                h_sheet.append(f"<td colspan='6' style='color: {c_color}; font-size: 12px; width: 13.68%;'>{weekdays_labels[d_o_w]} ({cur_d}日)</td>")
+                h_sheet.append(f"<td colspan='6' class='day-start' style='color: {c_color}; font-size: 12px; width: 13.68%;'>{weekdays_labels[d_o_w]} ({cur_d}日)</td>")
             else:
-                h_sheet.append(f"<td colspan='6' style='color: #aaa; background-color: #fafafa; width: 13.68%;'>{weekdays_labels[d_o_w]} (外)</td>")
+                h_sheet.append(f"<td colspan='6' class='day-start' style='color: #aaa; background-color: #fafafa; width: 13.68%;'>{weekdays_labels[d_o_w]} (外)</td>")
         h_sheet.append("</tr>")
         
         h_sheet.append("<tr style='background-color: #f9f9f9; font-size: 9px; height: 14px;'><td style='font-weight:bold; padding:0;'>-</td>")
         for _ in range(7):
-            h_sheet.append("<td style='width:1.8%; padding:0;'>サ1</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ1</td>")
+            h_sheet.append("<td class='day-start' style='width:1.8%; padding:0;'>サ1</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ1</td>")
             h_sheet.append("<td style='width:1.8%; padding:0;'>サ2</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ2</td>")
             h_sheet.append("<td style='width:1.8%; padding:0;'>サ3</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ3</td>")
         h_sheet.append("</tr>")
@@ -575,12 +580,15 @@ if uploaded_file is not None:
                         h_num = int(t_str.split(":")[0])
                         rd = ds[h_num]["row1" if t_str.endswith(":00") else "row2"]
                         
+                    first_cell = True
                     for sk, hk in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
                         bg_color_s = rd.get(f"{sk}_color", "#ffffff")
-                        h_sheet.append(f"<td style='background-color:{bg_color_s};'>{wrap_name(rd[sk], '')}</td>")
+                        cls = " class='day-start'" if first_cell else ""
+                        h_sheet.append(f"<td{cls} style='background-color:{bg_color_s};'>{wrap_name(rd[sk], '')}</td>")
                         h_sheet.append(f"<td style='font-weight:bold; background-color:{get_bg(rd[hk], hk)};'>{wrap_name(rd[hk], hk)}</td>")
+                        first_cell = False
                 else:
-                    h_sheet.append("<td colspan='6' style='background-color: #fafafa; opacity:0.1;'></td>")
+                    h_sheet.append("<td colspan='6' class='day-start' style='background-color: #fafafa; opacity:0.1;'></td>")
             h_sheet.append("</tr>")
         h_sheet.append("</table>")
         h_sheet.append("</div>")
