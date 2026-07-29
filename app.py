@@ -115,6 +115,75 @@ def read_weekly_excel_schedule(ws, calendar_data, target_year, target_month):
                     calendar_data[d][hour][row_key][k] = v
 
 # ────────────────────────────────────────────────────────
+# 📌 勤務表シート（1人1行・1日1列・明/遅/早/日/夜コード方式）を読み込む関数
+# ────────────────────────────────────────────────────────
+def read_duty_roster_schedule(ws, calendar_data, max_days):
+    """
+    従来の「勤務表」形式（A列にスタッフ名、B列以降が1日ごとの列、
+    各セルに 明/遅/早/日/夜 などのシフトコードが入っている表）を読み込む。
+    """
+    for d_num in range(1, max_days + 1):
+        target_col = 2 + (d_num - 1)
+        if target_col > ws.max_column: break
+
+        for r_idx in range(4, 15):
+            cell_val = ws.cell(row=r_idx, column=target_col).value
+            if cell_val:
+                cell_str = str(cell_val).strip()
+                if not cell_str or cell_str in ["┃", "│", "↓", "｜", "〃"]: continue
+                staff_name = ws.cell(row=r_idx, column=1).value
+                if not staff_name: continue
+                staff_name = str(staff_name).strip()
+
+                assigned_h = None
+                start_hour, start_min = None, 0
+                end_hour, end_min = None, 0
+
+                is_ake = "明" in cell_str or "ｍ" in cell_str or "m" in cell_str
+                is_osor = "遅" in cell_str
+                is_haya = "早" in cell_str or "ｆ" in cell_str or "f" in cell_str
+                is_yoru = "夜" in cell_str or "mf" in cell_str
+                is_nichi = "日" in cell_str
+
+                if is_ake:
+                    assigned_h = "h3"
+                    start_hour, start_min = 5, 0
+                    end_hour, end_min = 8, 0
+                elif is_osor:
+                    assigned_h = "h3"
+                    start_hour, start_min = 10, 0
+                    end_hour, end_min = 18, 30
+                elif is_haya:
+                    assigned_h = "h1"
+                    start_hour, start_min = 7, 0
+                    end_hour, end_min = 15, 0
+                elif is_nichi:
+                    assigned_h = "h2"
+                    start_hour, start_min = 14, 0
+                    end_hour, end_min = 17, 0
+                elif is_yoru:
+                    assigned_h = "h1"
+                    start_hour, start_min = 17, 0
+                    end_hour, end_min = 23, 0  # ⏰ 夜勤の終了時間を21時から23時へ変更
+
+                if assigned_h and start_hour is not None and end_hour is not None:
+                    current_time = datetime.datetime(2026, 1, 1, start_hour, start_min)
+                    end_time = datetime.datetime(2026, 1, 1, end_hour, end_min)
+                    if current_time >= end_time: continue
+                    time_slots = []
+                    while current_time <= end_time:
+                        time_slots.append((current_time.hour, current_time.minute))
+                        current_time += datetime.timedelta(minutes=30)
+                    for idx, (h, m) in enumerate(time_slots):
+                        row_key = "row1" if m == 0 else "row2"
+                        if idx == 0 or idx == len(time_slots) - 1:
+                            calendar_data[d_num][h][row_key][assigned_h] = staff_name
+                        else:
+                            current_val = calendar_data[d_num][h][row_key][assigned_h]
+                            if not current_val or current_val == "┃":
+                                calendar_data[d_num][h][row_key][assigned_h] = "┃"
+
+# ────────────────────────────────────────────────────────
 # 🖨️ UI・デザイン用CSS
 # ────────────────────────────────────────────────────────
 st.markdown("""
@@ -183,6 +252,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown("<h2 style='text-align: center; color: #333; margin-top: 0px;'>📅 シフト配置確認システム</h2>", unsafe_allow_html=True)
+
+file_type = st.radio(
+    "アップロードするExcelの種類を選択してください",
+    options=["週間予定表", "勤務表"],
+    horizontal=True,
+)
 uploaded_file = st.file_uploader("シフトExcelファイルを選択してください", type=["xlsx", "xlsm"])
 
 calendar_data = {}
@@ -213,68 +288,11 @@ if uploaded_file is not None:
         elif target_month == 2: max_days = 28
         else: max_days = 31
 
-        for d_num in range(1, max_days + 1):
-            target_col = 2 + (d_num - 1)
-            if target_col > ws_main.max_column: break
+        if file_type == "週間予定表":
+            read_weekly_excel_schedule(ws_main, calendar_data, target_year, target_month)
+        else:
+            read_duty_roster_schedule(ws_main, calendar_data, max_days)
 
-            for r_idx in range(4, 15):
-                cell_val = ws_main.cell(row=r_idx, column=target_col).value
-                if cell_val:
-                    cell_str = str(cell_val).strip()
-                    if not cell_str or cell_str in ["┃", "│", "↓", "｜", "〃"]: continue
-                    staff_name = ws_main.cell(row=r_idx, column=1).value
-                    if not staff_name: continue
-                    staff_name = str(staff_name).strip()
-
-                    assigned_h = None
-                    start_hour, start_min = None, 0
-                    end_hour, end_min = None, 0
-
-                    is_ake = "明" in cell_str or "ｍ" in cell_str or "m" in cell_str
-                    is_osor = "遅" in cell_str
-                    is_haya = "早" in cell_str or "ｆ" in cell_str or "f" in cell_str
-                    is_yoru = "夜" in cell_str or "mf" in cell_str
-                    is_nichi = "日" in cell_str
-
-                    if is_ake:
-                        assigned_h = "h3"
-                        start_hour, start_min = 5, 0
-                        end_hour, end_min = 8, 0
-                    elif is_osor:
-                        assigned_h = "h3"
-                        start_hour, start_min = 10, 0
-                        end_hour, end_min = 18, 30
-                    elif is_haya:
-                        assigned_h = "h1"
-                        start_hour, start_min = 7, 0
-                        end_hour, end_min = 15, 0
-                    elif is_nichi:
-                        assigned_h = "h2"
-                        start_hour, start_min = 14, 0
-                        end_hour, end_min = 17, 0
-                    elif is_yoru:
-                        assigned_h = "h1"
-                        start_hour, start_min = 17, 0
-                        end_hour, end_min = 23, 0  # ⏰ 夜勤の終了時間を21時から23時へ変更
-
-                    if assigned_h and start_hour is not None and end_hour is not None:
-                        current_time = datetime.datetime(2026, 1, 1, start_hour, start_min)
-                        end_time = datetime.datetime(2026, 1, 1, end_hour, end_min)
-                        if current_time >= end_time: continue
-                        time_slots = []
-                        while current_time <= end_time:
-                            time_slots.append((current_time.hour, current_time.minute))
-                            current_time += datetime.timedelta(minutes=30)
-                        for idx, (h, m) in enumerate(time_slots):
-                            row_key = "row1" if m == 0 else "row2"
-                            if idx == 0 or idx == len(time_slots) - 1:
-                                calendar_data[d_num][h][row_key][assigned_h] = staff_name
-                            else:
-                                current_val = calendar_data[d_num][h][row_key][assigned_h]
-                                if not current_val or current_val == "┃":
-                                    calendar_data[d_num][h][row_key][assigned_h] = "┃"
-
-        read_weekly_excel_schedule(ws_main, calendar_data, target_year, target_month)
         st.success(f"🎉 シート「{selected_sheet_name}」のデータを正常に解析しました。")
     except Exception as e:
         st.error(f"Excelの読み込みエラー: {e}")
