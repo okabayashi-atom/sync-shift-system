@@ -14,24 +14,6 @@ st.set_page_config(page_title="シフト配置確認システム", layout="wide"
 # 📌 週間予定表シートを実際のセル配置から直接読み込む関数
 # ────────────────────────────────────────────────────────
 def read_weekly_excel_schedule(ws, calendar_data, target_year, target_month):
-    """
-    アップロードされた「週間予定表」シートの実際のレイアウトから
-    サービス1/2/3・ヘルパー1/2/3をそのまま読み取り、該当する曜日の
-    日付すべて（その月の全ての火/水/木/…曜日）に反映する。
-
-    列の対応:
-        火曜日: C=サービス1 D=ヘルパー1 E=サービス2 F=ヘルパー2 G=サービス3 H=ヘルパー3
-        水曜日: I,J,K,L,M,N（同じ並び）
-        木曜日: O,P,Q,R,S,T
-        金曜日: U,V,W,X,Y,Z
-        土曜日: C,D,E,F,G,H
-        日曜日: I,J,K,L,M,N
-        月曜日: O,P,Q,R,S,T
-
-    行の対応:
-        火〜金ブロック: 8行目=5:00 〜 47行目=0:30（30分刻み、40コマ）
-        土〜月ブロック: 58行目=5:00 〜 97行目=0:30（30分刻み、40コマ）
-    """
     from openpyxl.utils import column_index_from_string
 
     weekday_blocks = {
@@ -43,10 +25,9 @@ def read_weekly_excel_schedule(ws, calendar_data, target_year, target_month):
         "日": (58, "I", "J", "K", "L", "M", "N"),
         "月": (58, "O", "P", "Q", "R", "S", "T"),
     }
-    SLOTS_PER_BLOCK = 40  # 5:00 から 翌0:30 まで 30分刻みで40コマ
+    SLOTS_PER_BLOCK = 40
 
     def get_fill_hex(cell):
-        """セルの塗りつぶし色をHEXで取得（テーマ色・塗りなしはNone扱い）"""
         fill = cell.fill
         if not fill or fill.fill_type != "solid":
             return None
@@ -57,7 +38,6 @@ def read_weekly_excel_schedule(ws, calendar_data, target_year, target_month):
                 return "#" + rgb[-6:]
         return None
 
-    # 曜日ごとに1週間分のテンプレート（時間帯→値）を作成
     weekday_template = {}
     for w_str, (base_row, c_s1, c_h1, c_s2, c_h2, c_s3, c_h3) in weekday_blocks.items():
         col_map = {
@@ -90,7 +70,6 @@ def read_weekly_excel_schedule(ws, calendar_data, target_year, target_month):
 
                 if key in ("s1", "s2", "s3"):
                     color = get_fill_hex(cell)
-                    # 「〃」など継続コマで色が塗られていない場合は直前の色を引き継ぐ
                     if not color and val_str == "〃":
                         color = last_color[key]
                     if color:
@@ -115,13 +94,9 @@ def read_weekly_excel_schedule(ws, calendar_data, target_year, target_month):
                     calendar_data[d][hour][row_key][k] = v
 
 # ────────────────────────────────────────────────────────
-# 📌 勤務表シート（1人1行・1日1列・明/遅/早/日/夜コード方式）を読み込む関数
+# 📌 勤務表シート（1人1行・1日1列）を読み込む関数
 # ────────────────────────────────────────────────────────
 def read_duty_roster_schedule(ws, calendar_data, max_days):
-    """
-    従来の「勤務表」形式（A列にスタッフ名、B列以降が1日ごとの列、
-    各セルに 明/遅/早/日/夜 などのシフトコードが入っている表）を読み込む。
-    """
     for d_num in range(1, max_days + 1):
         target_col = 2 + (d_num - 1)
         if target_col > ws.max_column: break
@@ -237,7 +212,8 @@ st.markdown("""
         .week-print-table th, .week-print-table td {
             font-size: 10.5px !important; 
             padding: 1px 1px !important;
-            height: 22px !important; 
+            /* 0:30まで表示しても溢れないように高さを22px→20pxに調整 */
+            height: 20px !important; 
             line-height: 1.05 !important;
             border: 1px solid #000 !important;
         }
@@ -252,7 +228,6 @@ st.markdown("""
 
 st.markdown("<h2 style='text-align: center; color: #333; margin-top: 0px;'>📅 シフト配置確認システム</h2>", unsafe_allow_html=True)
 
-# ── ファイルアップロード欄を2列に分けて配置 ──
 col1, col2 = st.columns(2)
 with col1:
     weekly_file = st.file_uploader("📅 【週間予定表】のExcelを選択", type=["xlsx", "xlsm"])
@@ -279,7 +254,6 @@ if weekly_file is not None or duty_file is not None:
             weekly_sheet_name = st.selectbox("週間予定表のシートを選択してください 👇", options=wb_weekly.sheetnames, key="weekly_sheet")
             ws_weekly = wb_weekly[weekly_sheet_name]
             
-            # シート名から月を抽出
             match = re.search(r'(\d+)月|\.(\d+)', weekly_sheet_name)
             if match:
                 target_month = int(match.group(1) or match.group(2))
@@ -293,13 +267,11 @@ if weekly_file is not None or duty_file is not None:
             duty_sheet_name = st.selectbox("勤務表のシートを選択してください 👇", options=wb_duty.sheetnames, key="duty_sheet")
             ws_duty = wb_duty[duty_sheet_name]
             
-            # 週間予定表が未アップロードの場合は勤務表から月を抽出
             if weekly_file is None:
                 match = re.search(r'(\d+)月|\.(\d+)', duty_sheet_name)
                 if match:
                     target_month = int(match.group(1) or match.group(2))
 
-            # max_daysの計算
             if target_month in [4, 6, 9, 11]: max_days = 30
             elif target_month == 2: max_days = 28
             else: max_days = 31
@@ -343,13 +315,13 @@ def make_html_table_with_time(day_schedule, font_size="11px", padding="3px", is_
     html.append("</tr>")
     
     rows_list = []
-    for hour in range(5, 23):
+    # 5:00〜23:30まで
+    for hour in range(5, 24):
         rows_list.append((f"{hour}:00", day_schedule[hour]["row1"]))
         rows_list.append((f"{hour}:30", day_schedule[hour]["row2"]))
     
-    rows_list.append(("23:00", day_schedule[23]["row1"]))
-    rows_list.append(("23:30", day_schedule[23]["row2"]))
-    rows_list.append(("0:00", day_schedule[0]["row1"]))
+    # 翌0:00と0:30も追加
+    rows_list.append(("24:00", day_schedule[0]["row1"]))
     rows_list.append(("0:30", day_schedule[0]["row2"]))
     
     for idx, (time_str, row_data) in enumerate(rows_list):
@@ -429,12 +401,11 @@ if weekly_file is not None or duty_file is not None:
         h_sheet.append("</tr>")
         
         r_list = []
-        for hour in range(5, 23):
+        for hour in range(5, 24):
             r_list.append((f"{hour}:00", True))
             r_list.append((f"{hour}:30", False))
-        r_list.append(("23:00", True))
-        r_list.append(("23:30", False))
-        r_list.append(("0:00", True))
+        
+        r_list.append(("24:00", True))
         r_list.append(("0:30", False))
             
         for idx, (t_str, is_even) in enumerate(r_list):
@@ -445,8 +416,14 @@ if weekly_file is not None or duty_file is not None:
                 cur_d = start_d + d_o_w
                 if 1 <= cur_d <= max_days:
                     ds = calendar_data[cur_d]
-                    h_num = int(t_str.split(":")[0])
-                    rd = ds[h_num]["row1" if t_str.endswith(":00") else "row2"]
+                    
+                    if t_str == "24:00":
+                        rd = ds[0]["row1"]
+                    elif t_str == "0:30":
+                        rd = ds[0]["row2"]
+                    else:
+                        h_num = int(t_str.split(":")[0])
+                        rd = ds[h_num]["row1" if t_str.endswith(":00") else "row2"]
                         
                     first_cell = True
                     for sk, hk in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
