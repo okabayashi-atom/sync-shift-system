@@ -11,262 +11,108 @@ os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
 st.set_page_config(page_title="シフト配置確認システム", layout="wide")
 
 # ────────────────────────────────────────────────────────
-# 📌 曜日・個別カラー対応 サービス固定シフト反映関数
+# 📌 週間予定表シートを実際のセル配置から直接読み込む関数
 # ────────────────────────────────────────────────────────
-def apply_fixed_service_schedule(calendar_data, target_year, target_month):
-    weekday_map = {0: "月", 1: "火", 2: "水", 3: "木", 4: "金", 5: "土", 6: "日"}
+def read_weekly_excel_schedule(ws, calendar_data, target_year, target_month):
+    """
+    アップロードされた「週間予定表」シートの実際のレイアウトから
+    サービス1/2/3・ヘルパー1/2/3をそのまま読み取り、該当する曜日の
+    日付すべて（その月の全ての火/水/木/…曜日）に反映する。
 
-    schedules = [
-        # ーーー 共通 ーーー
-        (7, 0, "越智f", "s1", "全", None),
-        (7, 30, "八子mh", "s1", "全", "#ff64c8"),
-        (8, 0, "木村fh", "s1", "全", "#ff64c8"),
-        (12, 0, "越智h", "s1", "全", "#ffff00"),
-        (12, 30, "八子h", "s1", "全", "#ff64c8"),
-        (15, 0, "貝森f", "s1", "全", "#ffff00"),
-        (17, 0, "越智f", "s1", "全", None),
-        (17, 30, "貝森c", "s1", "全", "#ffff00"),
-        (18, 30, "西井eh", "s1", "全", "#ff64c8"),
-        (19, 0, "照井e", "s1", "全", "#ff64c8"),
-        (19, 30, "八子ef", "s1", "全", "#ff64c8"),
-        (20, 0, "越智e", "s1", "全", "#ffff00"),
-        (20, 30, "貝森f", "s1", "全", "#ffff00"),
-        (21, 0, "平野e", "s1", "全", "#ffff00"),
-        
-        (17, 0, "木村", "s2", "全", None),
-        
-        (5, 0, "越智m", "s3", "全", "#ffff00"),
-        (5, 30, "貝森m", "s3", "全", "#ffff00"),
-        (6, 0, "照井mf", "s3", "全", "#ff64c8"),
-        (7, 0, "佐藤m", "s3", "全", "#ff64c8"),
-        (7, 30, "平野m", "s3", "全", "#ffff00"),
-        (8, 0, "貝森c", "s3", "全", "#ffff00"),
-        (18, 30, "佐藤e", "s3", "全", "#ff64c8"),
-        
-        # ーーー サービス1 (s1) ーーー
-        # --- 月 ---
-        (10, 0, "越智h", "s1", "月", None),
-        (11, 0, "貝森b", "s1", "月", "#ffff00"),
-        (11, 30, "〃", "s1", "月", "#ffff00"),
-        (13, 0, "西井S", "s1", "月", None),
-        (13, 30, "〃", "s1", "月", None),
-        (23, 0, "貝森h", "s1", "月", "#ffff00"),
-        # --- 火 ---
-        (10, 0, "赤尾b", "s1", "火", None),
-        (10, 30, "〃", "s1", "火", None),
-        (11, 0, "越智b", "s1", "火", None),
-        (11, 30, "〃", "s1", "火", None),
-        (14, 0, "越智sw", "s1", "火", "#ffff00"),
-        (14, 30, "〃", "s1", "火", "#ffff00"),
-        # --- 水 ---
-        (9, 0, "山中b", "s1", "水", None),
-        (9, 30, "〃", "s1", "水", None),
-        (10, 0, "越智h", "s1", "水", None),
-        (13, 0, "斎藤", "s1", "水", None),
-        (13, 30, "〃", "s1", "水", None),
-        (14, 0, "西井b", "s1", "水", None),
-        (14, 30, "〃", "s1", "水", None),
-        (23, 0, "貝森h", "s1", "水", "#ffff00"),
-        # --- 木 ---
-        (10, 0, "脇坂sw", "s1", "木", None),
-        (10, 30, "〃", "s1", "木", None),
-        (11, 0, "貝森b", "s1", "木", "#ffff00"),
-        (11, 30, "〃", "s1", "木", "#ffff00"),
-        (13, 0, "邦洋sw", "s1", "木", None),
-        (13, 30, "〃", "s1", "木", None),
-        (23, 0, "貝森h", "s1", "木", "#ffff00"),
-        # --- 金 ---
-        (10, 0, "赤尾b", "s1", "金", None),
-        (10, 30, "〃", "s1", "金", None),
-        (11, 0, "越智b", "s1", "金", None),
-        (11, 30, "〃", "s1", "金", None),
-        (14, 0, "越智sw", "s1", "金", "#ffff00"),
-        (14, 30, "〃", "s1", "金", "#ffff00"),
-        # --- 土 ---
-        (9, 0, "照井b", "s1", "土", None),
-        (9, 30, "〃", "s1", "土", None),
-        (10, 0, "越智h", "s1", "土", None),
-        (13, 0, "斎藤b", "s1", "土", None),
-        (13, 30, "〃", "s1", "土", None),
-        (14, 0, "上吉川sw", "s1", "土", "#ffff00"),
-        (14, 30, "〃", "s1", "土", "#ffff00"),
-        (23, 0, "貝森h", "s1", "土", "#ffff00"),
-        # --- 日 ---
-        (10, 0, "越智h", "s1", "日", None),
-        (13, 0, "邦洋b", "s1", "日", None),
-        (13, 30, "〃", "s1", "日", None),
-        (14, 0, "御前sw", "s1", "日", None),
-        (14, 30, "〃", "s1", "日", None),
-        
-        # ーーー サービス2 (s2) ーーー
-        # --- 月 ---
-        (9, 0, "脇坂sw", "s2", "月", None),
-        (9, 30, "〃", "s2", "月", None),
-        (10, 0, "貝森h", "s2", "月", "#ffff00"),
-        (11, 30, "木村fh", "s2", "月", "#ff64c8"),
-        (12, 30, "貝森c", "s2", "月", "#ffff00"),
-        (13, 0, "赤尾sw", "s2", "月", None),
-        (13, 30, "〃", "s2", "月", None),
-        (14, 0, "木村b", "s2", "月", None),
-        (15, 0, "脇坂", "s2", "月", None),
-        (15, 30, "〃", "s2", "月", None),
-        (16, 0, "貝森sw", "s2", "月", "#ffff00"),
-        (16, 30, "〃", "s2", "月", "#ffff00"),
-        # --- 火 ---
-        (14, 0, "山中sw", "s2", "火", None),
-        (14, 30, "〃", "s2", "火", None),
-        (16, 0, "上吉川sw", "s2", "火", "#ffff00"),
-        (16, 30, "〃", "s2", "火", "#ffff00"),
-        # --- 水 ---
-        (14, 0, "棟方s", "s2", "水", None),
-        (14, 30, "〃", "s2", "水", None),
-        (16, 0, "斎藤sw", "s2", "水", None),
-        (16, 30, "〃", "s2", "水", None),
-        # --- 木 ---
-        (9, 30, "越智h", "s2", "木", None),
-        (10, 0, "貝森h", "s2", "木", "#ffff00"),
-        (11, 30, "木村fh", "s2", "木", "#ff64c8"),
-        (12, 30, "貝森c", "s2", "木", "#ffff00"),
-        (13, 0, "石田sw", "s2", "木", None),
-        (13, 30, "〃", "s2", "木", None),
-        (14, 0, "御前sw", "s2", "木", None),
-        (14, 30, "〃", "s2", "木", None),
-        # --- 金 ---
-        (14, 0, "棟方s", "s2", "金", None),
-        (14, 30, "〃", "s2", "金", None),
-        (15, 0, "〃", "s2", "金", None),
-        (16, 0, "菅原s", "s2", "金", "#ffff00"),
-        (16, 30, "〃", "s2", "金", "#ffff00"),
-        # --- 土 ---
-        (16, 0, "斎藤sw", "s2", "土", None),
-        (16, 30, "〃", "s2", "土", None),
-        # --- 日 ---
-        (16, 0, "菅原s", "s2", "日", "#ffff00"),
-        (16, 30, "〃", "s2", "日", "#ffff00"),
-        
-        # ーーー サービス3 (s3) ーーー
-        # --- 月 ---
-        (16, 30, "石田w", "s3", "月", "#ff64c8"), 
-        (17, 0, "平野sw", "s3", "月", "#ffff00"),
-        (17, 30, "〃", "s3", "月", "#ffff00"),
-        (18, 0, "上吉川w", "s3", "月", "#ffff00"),
-        # --- 火 ---
-        (10, 0, "貝森h", "s3", "火", "#ffff00"),
-        (10, 30, "八子sw", "s3", "火", None),
-        (11, 0, "〃", "s3", "火", None),
-        (11, 30, "木村fh", "s3", "火", "#ff64c8"),
-        (12, 0, "貝森c", "s3", "火", "#ffff00"),
-        (14, 0, "照井b", "s3", "火", None),
-        (14, 30, "〃", "s3", "火", None),
-        (15, 0, "八子b", "s3", "火", None),
-        (15, 30, "〃", "s3", "火", None),
-        (16, 0, "樺澤sw", "s3", "火", "#ffff00"),
-        (16, 30, "〃", "s3", "火", "#ffff00"),
-        (17, 0, "樺澤h", "s3", "火", "#ffff00"),
-        (17, 30, "平野w", "s3", "火", "#ffff00"),
-        # --- 水 ---
-        (10, 0, "貝森h", "s3", "水", "#ffff00"),
-        (10, 30, "石田b", "s3", "水", "#ffff00"),
-        (12, 0, "貝森c", "s3", "水", "#ffff00"),
-        (13, 0, "照井sw", "s3", "水", "#ffff00"),
-        (13, 30, "〃", "s3", "水", "#ffff00"),
-        (17, 0, "平野sw", "s3", "水", "#ffff00"),
-        (17, 30, "〃", "s3", "水", "#ffc0cb"),
-        (18, 0, "上吉川w", "s3", "水", "#ffc0cb"),
-        # --- 木 ---
-        (16, 0, "貝森sw", "s3", "木", "#ffff00"),
-        (16, 30, "〃", "s3", "木", "#ffff00"),
-        (17, 30, "平野w", "s3", "木", "#ffff00"),
-        (18, 0, "上吉川w", "s3", "木", "#ffff00"),
-        # --- 金 ---
-        (10, 0, "貝森h", "s3", "金", "#ffff00"),
-        (10, 30, "八子sw", "s3", "金", None),
-        (11, 0, "〃", "s3", "金", None),
-        (11, 30, "木村fh", "s3", "金", "#ff64c8"),
-        (12, 0, "貝森c", "s3", "金", "#ffff00"),
-        (14, 0, "山中sw", "s3", "金", None),
-        (14, 30, "〃", "s3", "金", None),
-        (15, 0, "八子b", "s3", "金", None),
-        (15, 30, "〃", "s3", "金", None),
-        (16, 0, "樺澤sw", "s3", "金", "#ffff00"),
-        (16, 30, "〃", "s3", "金", "#ffff00"),
-        (17, 0, "樺澤h", "s3", "金", "#ffff00"),
-        (17, 30, "平野w", "s3", "金", "#ffff00"),
-        (18, 0, "上吉川w", "s3", "金", "#ffff00"),
-        # --- 土 ---
-        (10, 0, "貝森h", "s3", "土", "#ffff00"),
-        (10, 30, "上吉川b", "s3", "土", "#ffff00"),
-        (11, 0, "〃", "s3", "土", "#ffff00"),
-        (12, 0, "貝森c", "s3", "土", "#ffff00"),
-        (13, 0, "照井sw", "s3", "土", None),
-        (13, 30, "〃", "s3", "土", None),
-        (16, 0, "貝森sw", "s3", "土", "#ffff00"),
-        (16, 30, "〃", "s3", "土", "#ffff00"),
-        (17, 0, "平野sw", "s3", "土", "#ffff00"),
-        (17, 30, "〃", "s3", "土", "#ffff00"),
-        # --- 日 ---
-        (10, 0, "貝森h", "s3", "日", "#ffff00"),
-        (11, 30, "木村fh", "s3", "日", "#ff64c8"),
-        (12, 0, "貝森c", "s3", "日", "#ffff00"),
-        (14, 0, "木村sw", "s3", "日", None),
-        (14, 30, "〃", "s3", "日", None),
-        (17, 30, "平野sw", "s3", "日", "#ffff00"),
-        (18, 0, "上吉川w", "s3", "日", "#ffff00"),
-    ]
-    
+    列の対応:
+        火曜日: C=サービス1 D=ヘルパー1 E=サービス2 F=ヘルパー2 G=サービス3 H=ヘルパー3
+        水曜日: I,J,K,L,M,N（同じ並び）
+        木曜日: O,P,Q,R,S,T
+        金曜日: U,V,W,X,Y,Z
+        土曜日: C,D,E,F,G,H
+        日曜日: I,J,K,L,M,N
+        月曜日: O,P,Q,R,S,T
+
+    行の対応:
+        火〜金ブロック: 8行目=5:00 〜 47行目=0:30（30分刻み、40コマ）
+        土〜月ブロック: 58行目=5:00 〜 97行目=0:30（30分刻み、40コマ）
+    """
+    from openpyxl.utils import column_index_from_string
+
+    weekday_blocks = {
+        "火": (8, "C", "D", "E", "F", "G", "H"),
+        "水": (8, "I", "J", "K", "L", "M", "N"),
+        "木": (8, "O", "P", "Q", "R", "S", "T"),
+        "金": (8, "U", "V", "W", "X", "Y", "Z"),
+        "土": (58, "C", "D", "E", "F", "G", "H"),
+        "日": (58, "I", "J", "K", "L", "M", "N"),
+        "月": (58, "O", "P", "Q", "R", "S", "T"),
+    }
+    SLOTS_PER_BLOCK = 40  # 5:00 から 翌0:30 まで 30分刻みで40コマ
+
+    def get_fill_hex(cell):
+        """セルの塗りつぶし色をHEXで取得（テーマ色・塗りなしはNone扱い）"""
+        fill = cell.fill
+        if not fill or fill.fill_type != "solid":
+            return None
+        fg = fill.fgColor
+        if getattr(fg, "type", None) == "rgb":
+            rgb = fg.rgb
+            if isinstance(rgb, str) and len(rgb) >= 6:
+                return "#" + rgb[-6:]
+        return None
+
+    # 曜日ごとに1週間分のテンプレート（時間帯→値）を作成
+    weekday_template = {}
+    for w_str, (base_row, c_s1, c_h1, c_s2, c_h2, c_s3, c_h3) in weekday_blocks.items():
+        col_map = {
+            "s1": column_index_from_string(c_s1), "h1": column_index_from_string(c_h1),
+            "s2": column_index_from_string(c_s2), "h2": column_index_from_string(c_h2),
+            "s3": column_index_from_string(c_s3), "h3": column_index_from_string(c_h3),
+        }
+        template = {}
+        last_color = {"s1": None, "s2": None, "s3": None}
+
+        for offset in range(SLOTS_PER_BLOCK):
+            row = base_row + offset
+            total_min = 5 * 60 + offset * 30
+            hour = (total_min // 60) % 24
+            minute = total_min % 60
+            row_key = "row1" if minute == 0 else "row2"
+            template.setdefault(hour, {"row1": {}, "row2": {}})
+
+            for key, col_idx in col_map.items():
+                cell = ws.cell(row=row, column=col_idx)
+                val = cell.value
+                val_str = str(val).strip() if val is not None else ""
+
+                if not val_str:
+                    if key in ("s1", "s2", "s3"):
+                        last_color[key] = None
+                    continue
+
+                template[hour][row_key][key] = val_str
+
+                if key in ("s1", "s2", "s3"):
+                    color = get_fill_hex(cell)
+                    # 「〃」など継続コマで色が塗られていない場合は直前の色を引き継ぐ
+                    if not color and val_str == "〃":
+                        color = last_color[key]
+                    if color:
+                        template[hour][row_key][f"{key}_color"] = color
+                    last_color[key] = color
+
+        weekday_template[w_str] = template
+
+    weekday_map = {0: "月", 1: "火", 2: "水", 3: "木", 4: "金", 5: "土", 6: "日"}
     for d in range(1, 32):
         try:
             this_date = datetime.date(target_year, target_month, d)
-            w_str = weekday_map[this_date.weekday()]
-        except:
+        except ValueError:
             continue
-            
-        for h, m, name, col, w_cond, custom_color in schedules:
-            is_match = False
-            if w_cond == "全" or (isinstance(w_cond, list) and w_str in w_cond) or w_cond == w_str:
-                is_match = True
-                
-            if is_match:
-                row_key = "row1" if m == 0 else "row2"
-                calendar_data[d][h][row_key][col] = name
-                if custom_color:
-                    calendar_data[d][h][row_key][f"{col}_color"] = custom_color
-            
-        hours_seq = list(range(5, 24)) + [0]
-        for col_key in ["s1", "s2", "s3"]:
-            last_name = None
-            last_color = None
-            for hour in hours_seq:
-                for r_key in ["row1", "row2"]:
-                    current_name = calendar_data[d][hour][r_key][col_key]
-                    current_color = calendar_data[d][hour][r_key].get(f"{col_key}_color", None)
-                    
-                    if current_name:
-                        if current_name == last_name:
-                            calendar_data[d][hour][r_key][col_key] = "〃"
-                            if last_color:
-                                calendar_data[d][hour][r_key][f"{col_key}_color"] = last_color
-                        else:
-                            last_name = current_name
-                            last_color = current_color
-                    else:
-                        last_name = None
-                        last_color = None
-            
-        # 〃（同上）の補完処理
-        hours_seq = list(range(5, 24)) + [0]
-        for col_key in ["s1", "s2", "s3"]:
-            last_name = None
-            for hour in hours_seq:
-                for r_key in ["row1", "row2"]:
-                    current_name = calendar_data[d][hour][r_key][col_key]
-                    if current_name:
-                        if current_name == last_name:
-                            calendar_data[d][hour][r_key][col_key] = "〃"
-                        else:
-                            last_name = current_name
-                    else:
-                        last_name = None
+        w_str = weekday_map[this_date.weekday()]
+        template = weekday_template.get(w_str)
+        if not template:
+            continue
+        for hour, rows in template.items():
+            for row_key, values in rows.items():
+                for k, v in values.items():
+                    calendar_data[d][hour][row_key][k] = v
 
 # ────────────────────────────────────────────────────────
 # 🖨️ UI・デザイン用CSS
@@ -428,7 +274,7 @@ if uploaded_file is not None:
                                 if not current_val or current_val == "┃":
                                     calendar_data[d_num][h][row_key][assigned_h] = "┃"
 
-        apply_fixed_service_schedule(calendar_data, target_year, target_month)
+        read_weekly_excel_schedule(ws_main, calendar_data, target_year, target_month)
         st.success(f"🎉 シート「{selected_sheet_name}」のデータを正常に解析しました。")
     except Exception as e:
         st.error(f"Excelの読み込みエラー: {e}")
@@ -471,16 +317,9 @@ def make_html_table_with_time(day_schedule, font_size="11px", padding="3px", is_
         rows_list.append((f"{hour}:30", day_schedule[hour]["row2"]))
     
     rows_list.append(("23:00", day_schedule[23]["row1"]))
-    
-    late_row = day_schedule[23]["row2"].copy()
-    for r_k in ["row1", "row2"]:
-        for k in ["s1", "h1", "s2", "h2", "s3", "h3"]:
-            if not late_row[k] and day_schedule[0][r_k][k]:
-                late_row[k] = day_schedule[0][r_k][k]
-            if day_schedule[0][r_k].get(f"{k}_color"):
-                late_row[f"{k}_color"] = day_schedule[0][r_k].get(f"{k}_color")
-                
-    rows_list.append(("23:30以降", late_row))
+    rows_list.append(("23:30", day_schedule[23]["row2"]))
+    rows_list.append(("0:00", day_schedule[0]["row1"]))
+    rows_list.append(("0:30", day_schedule[0]["row2"]))
     
     for idx, (time_str, row_data) in enumerate(rows_list):
         is_dash = time_str.endswith(":00")
@@ -564,7 +403,8 @@ if uploaded_file is not None:
             r_list.append((f"{hour}:30", False))
         r_list.append(("23:00", True))
         r_list.append(("23:30", False))
-        r_list.append(("24:00", True))
+        r_list.append(("0:00", True))
+        r_list.append(("0:30", False))
             
         for idx, (t_str, is_even) in enumerate(r_list):
             b_style = "border-bottom:1px solid #333;" if not is_even else "border-bottom:1px dashed #ccc;"
@@ -574,11 +414,8 @@ if uploaded_file is not None:
                 cur_d = start_d + d_o_w
                 if 1 <= cur_d <= max_days:
                     ds = calendar_data[cur_d]
-                    if t_str == "24:00":
-                        rd = ds[0]["row1"]
-                    else:
-                        h_num = int(t_str.split(":")[0])
-                        rd = ds[h_num]["row1" if t_str.endswith(":00") else "row2"]
+                    h_num = int(t_str.split(":")[0])
+                    rd = ds[h_num]["row1" if t_str.endswith(":00") else "row2"]
                         
                     first_cell = True
                     for sk, hk in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
