@@ -164,7 +164,7 @@ def read_duty_roster_schedule(ws, calendar_data, max_days):
                 elif is_yoru:
                     assigned_h = "h1"
                     start_hour, start_min = 17, 0
-                    end_hour, end_min = 23, 0  # ⏰ 夜勤の終了時間を21時から23時へ変更
+                    end_hour, end_min = 23, 0
 
                 if assigned_h and start_hour is not None and end_hour is not None:
                     current_time = datetime.datetime(2026, 1, 1, start_hour, start_min)
@@ -242,7 +242,6 @@ st.markdown("""
             border: 1px solid #000 !important;
         }
         .week-print-table .time-col { font-size: 10px !important; font-weight: bold !important; }
-        /* 日付の区切り（各曜日の先頭列）の縦線を太く */
         .week-print-table td.day-start,
         .week-print-table th.day-start {
             border-left: 3px solid #000 !important;
@@ -253,12 +252,12 @@ st.markdown("""
 
 st.markdown("<h2 style='text-align: center; color: #333; margin-top: 0px;'>📅 シフト配置確認システム</h2>", unsafe_allow_html=True)
 
-file_type = st.radio(
-    "アップロードするExcelの種類を選択してください",
-    options=["週間予定表", "勤務表"],
-    horizontal=True,
-)
-uploaded_file = st.file_uploader("シフトExcelファイルを選択してください", type=["xlsx", "xlsm"])
+# ── ファイルアップロード欄を2列に分けて配置 ──
+col1, col2 = st.columns(2)
+with col1:
+    weekly_file = st.file_uploader("📅 【週間予定表】のExcelを選択", type=["xlsx", "xlsm"])
+with col2:
+    duty_file = st.file_uploader("📋 【勤務表】のExcelを選択", type=["xlsx", "xlsm"])
 
 calendar_data = {}
 for d in range(1, 32):
@@ -272,28 +271,42 @@ for d in range(1, 32):
 target_year = 2026
 target_month = 6
 
-if uploaded_file is not None:
+if weekly_file is not None or duty_file is not None:
     try:
-        wb = openpyxl.load_workbook(uploaded_file, data_only=True)
-        all_sheets = wb.sheetnames
-        selected_sheet_name = st.selectbox("確認したいシフトのシートを選択してください 👇", options=all_sheets)
-        ws_main = wb[selected_sheet_name]
+        # --- 週間予定表の読み込み ---
+        if weekly_file is not None:
+            wb_weekly = openpyxl.load_workbook(weekly_file, data_only=True)
+            weekly_sheet_name = st.selectbox("週間予定表のシートを選択してください 👇", options=wb_weekly.sheetnames, key="weekly_sheet")
+            ws_weekly = wb_weekly[weekly_sheet_name]
+            
+            # シート名から月を抽出
+            match = re.search(r'(\d+)月|\.(\d+)', weekly_sheet_name)
+            if match:
+                target_month = int(match.group(1) or match.group(2))
+            
+            read_weekly_excel_schedule(ws_weekly, calendar_data, target_year, target_month)
+            st.success(f"🎉 週間予定表「{weekly_sheet_name}」を反映しました。")
 
-        match = re.search(r'(\d+)月|\.(\d+)', selected_sheet_name)
-        if match:
-            extracted_month = match.group(1) or match.group(2)
-            target_month = int(extracted_month)
+        # --- 勤務表の読み込み ---
+        if duty_file is not None:
+            wb_duty = openpyxl.load_workbook(duty_file, data_only=True)
+            duty_sheet_name = st.selectbox("勤務表のシートを選択してください 👇", options=wb_duty.sheetnames, key="duty_sheet")
+            ws_duty = wb_duty[duty_sheet_name]
+            
+            # 週間予定表が未アップロードの場合は勤務表から月を抽出
+            if weekly_file is None:
+                match = re.search(r'(\d+)月|\.(\d+)', duty_sheet_name)
+                if match:
+                    target_month = int(match.group(1) or match.group(2))
 
-        if target_month in [4, 6, 9, 11]: max_days = 30
-        elif target_month == 2: max_days = 28
-        else: max_days = 31
+            # max_daysの計算
+            if target_month in [4, 6, 9, 11]: max_days = 30
+            elif target_month == 2: max_days = 28
+            else: max_days = 31
+            
+            read_duty_roster_schedule(ws_duty, calendar_data, max_days)
+            st.success(f"🎉 勤務表「{duty_sheet_name}」を重ねて反映しました。")
 
-        if file_type == "週間予定表":
-            read_weekly_excel_schedule(ws_main, calendar_data, target_year, target_month)
-        else:
-            read_duty_roster_schedule(ws_main, calendar_data, max_days)
-
-        st.success(f"🎉 シート「{selected_sheet_name}」のデータを正常に解析しました。")
     except Exception as e:
         st.error(f"Excelの読み込みエラー: {e}")
 
@@ -365,7 +378,7 @@ def get_era_label(year, month):
 
 era_label = get_era_label(target_year, target_month)
 
-if uploaded_file is not None:
+if weekly_file is not None or duty_file is not None:
     view_mode = st.tabs(["📅 1週間表示（時間軸スリム）", "📊 1ヶ月表示（カレンダー）", "🔍 1日集中表示"])
 
     with view_mode[0]:
@@ -393,7 +406,7 @@ if uploaded_file is not None:
         
         h_sheet = []
         h_sheet.append("<div class='print-target'>")
-        h_sheet.append(f"<div style='text-align:right; font-size:12px; font-weight:bold; color:#333; padding:0 2px 2px 0;'>{era_label}　第{st.session_state.current_week_idx + 1}週</div>")
+        h_sheet.append(f"<div style='text-align:right; font-size:12px; font-weight:bold; color:#333; padding:0 2px 2px 0;'>{era_label} 第{st.session_state.current_week_idx + 1}週</div>")
         
         h_sheet.append("<table class='calendar-table week-print-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
         h_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold;'>")
@@ -501,4 +514,4 @@ if uploaded_file is not None:
         day_table_html = make_html_table_with_time(calendar_data[st.session_state.current_day_val], font_size="15px", padding="6px", is_large=True)
         st.html(f"<div class='print-target' style='max-width: 650px; margin: 0 auto; border: 2px solid #1c83e1; background-color: #ffffff; border-radius: 8px; padding: 10px;'>{day_table_html}</div>")
 else:
-    st.info("💡 左側のメニューから、解析元のシフトExcelファイルをアップロードしてください。")
+    st.info("💡 上部のメニューから、解析元のシフトExcelファイルをアップロードしてください。「週間予定表」と「勤務表」両方を入れると合算されて表示されます。")
