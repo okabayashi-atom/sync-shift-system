@@ -321,7 +321,7 @@ def make_html_table_with_time(day_schedule, font_size="11px", padding="3px", is_
         rows_list.append((f"{hour}:30", day_schedule[hour]["row2"]))
     
     # 翌0:00と0:30も追加
-    rows_list.append(("24:00", day_schedule[0]["row1"]))
+    rows_list.append(("0:00", day_schedule[0]["row1"]))
     rows_list.append(("0:30", day_schedule[0]["row2"]))
     
     for idx, (time_str, row_data) in enumerate(rows_list):
