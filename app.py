@@ -190,14 +190,22 @@ st.markdown("""
         .print-target, .print-target * { visibility: visible !important; }
         
         .print-target {
-            position: fixed !important;
+            position: absolute !important;
             left: 0 !important;
             top: 0 !important;
             width: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
-            page-break-before: avoid !important;
+        }
+        .week-page {
+            page-break-after: always !important;
+            break-after: page !important;
             page-break-inside: avoid !important;
+            break-inside: avoid !important;
+        }
+        .week-page:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
         }
         html, body {
             margin: 0 !important;
@@ -354,90 +362,84 @@ if weekly_file is not None or duty_file is not None:
     view_mode = st.tabs(["📅 1週間表示（時間軸スリム）", "📊 1ヶ月表示（カレンダー）", "🔍 1日集中表示"])
 
     with view_mode[0]:
-        if 'current_week_idx' not in st.session_state: st.session_state.current_week_idx = 0
-        weeks_list = ["第1週 (1日〜)", "第2週", "第3週", "第4週", "第5週", "第6週"]
-        
-        b_col1, b_col2, b_col3 = st.columns([1, 3, 1])
-        with b_col1:
-            if st.button("← 前の週", use_container_width=True, key="p_wk_k"):
-                if st.session_state.current_week_idx > 0: st.session_state.current_week_idx -= 1
-        with b_col3:
-            if st.button("次の週 →", use_container_width=True, key="n_wk_k"):
-                if st.session_state.current_week_idx < len(weeks_list) - 1: st.session_state.current_week_idx += 1
-        with b_col2:
-            week_option = st.selectbox("週選択", options=weeks_list, index=st.session_state.current_week_idx)
-            st.session_state.current_week_idx = weeks_list.index(week_option)
-        st.write("---")
-        
-        st.components.v1.html("""
-            <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ この週間シフト表を印刷（自動1枚収め設定）</button>
-        """, height=50)
-        
-        start_d = st.session_state.current_week_idx * 7 + 1 - start_offset
         weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
-        
+        total_weeks = (start_offset + max_days + 6) // 7  # 月内の全日数をカバーするのに必要な週数
+
+        st.components.v1.html(f"""
+            <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ 全{total_weeks}週分を印刷（週ごとに自動改ページ）</button>
+        """, height=50)
+        st.caption(f"📄 {era_label} の全{total_weeks}週分をまとめて表示しています。印刷すると1週間＝1ページで自動的に分かれて出力されます。")
+        st.write("---")
+
         h_sheet = []
         h_sheet.append("<div class='print-target'>")
-        h_sheet.append(f"<div style='text-align:right; font-size:12px; font-weight:bold; color:#333; padding:0 2px 2px 0;'>{era_label} 第{st.session_state.current_week_idx + 1}週</div>")
-        
-        h_sheet.append("<table class='calendar-table week-print-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
-        h_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold;'>")
-        h_sheet.append("<td class='time-col' style='width: 4.2%; padding: 4px 0;'>時間</td>")
-        
-        for d_o_w in range(7):
-            cur_d = start_d + d_o_w
-            c_color = '#ff4b4b' if d_o_w == 0 else '#1c83e1' if d_o_w == 6 else '#333333'
-            if 1 <= cur_d <= max_days:
-                h_sheet.append(f"<td colspan='6' class='day-start' style='color: {c_color}; font-size: 12px; width: 13.68%;'>{weekdays_labels[d_o_w]} ({cur_d}日)</td>")
-            else:
-                h_sheet.append(f"<td colspan='6' class='day-start' style='color: #aaa; background-color: #fafafa; width: 13.68%;'>{weekdays_labels[d_o_w]} (外)</td>")
-        h_sheet.append("</tr>")
-        
-        h_sheet.append("<tr style='background-color: #f9f9f9; font-size: 9px; height: 14px;'><td style='font-weight:bold; padding:0;'>-</td>")
-        for _ in range(7):
-            h_sheet.append("<td class='day-start' style='width:1.8%; padding:0;'>サ1</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ1</td>")
-            h_sheet.append("<td style='width:1.8%; padding:0;'>サ2</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ2</td>")
-            h_sheet.append("<td style='width:1.8%; padding:0;'>サ3</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ3</td>")
-        h_sheet.append("</tr>")
-        
-        r_list = []
-        for hour in range(5, 24):
-            r_list.append((f"{hour}:00", True))
-            r_list.append((f"{hour}:30", False))
-        
-        r_list.append(("24:00", True))
-        r_list.append(("0:30", False))
-            
-        for idx, (t_str, is_even) in enumerate(r_list):
-            b_style = "border-bottom:1px solid #333;" if not is_even else "border-bottom:1px dashed #ccc;"
-            h_sheet.append(f"<tr style='{b_style}'><td class='time-col' style='background-color:#f2f2f2;'>{t_str}</td>")
-            
+
+        for week_idx in range(total_weeks):
+            start_d = week_idx * 7 + 1 - start_offset
+
+            h_sheet.append(f"<div class='week-page' id='week-page-{week_idx + 1}' style='margin-bottom:22px;'>")
+            h_sheet.append(f"<div style='text-align:right; font-size:12px; font-weight:bold; color:#333; padding:0 2px 2px 0;'>{era_label} 第{week_idx + 1}週</div>")
+
+            h_sheet.append("<table class='calendar-table week-print-table' style='width:100%; border-collapse:collapse; text-align:center; font-family:sans-serif; table-layout:fixed; border:2px solid #333;'>")
+            h_sheet.append("<tr style='background-color: #f0f0f0; font-weight: bold;'>")
+            h_sheet.append("<td class='time-col' style='width: 4.2%; padding: 4px 0;'>時間</td>")
+
             for d_o_w in range(7):
                 cur_d = start_d + d_o_w
+                c_color = '#ff4b4b' if d_o_w == 0 else '#1c83e1' if d_o_w == 6 else '#333333'
                 if 1 <= cur_d <= max_days:
-                    ds = calendar_data[cur_d]
-                    
-                    if t_str == "24:00":
-                        rd = ds[0]["row1"]
-                    elif t_str == "0:30":
-                        rd = ds[0]["row2"]
-                    else:
-                        h_num = int(t_str.split(":")[0])
-                        rd = ds[h_num]["row1" if t_str.endswith(":00") else "row2"]
-                        
-                    first_cell = True
-                    for sk, hk in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
-                        bg_color_s = rd.get(f"{sk}_color", "#ffffff")
-                        cls = " class='day-start'" if first_cell else ""
-                        h_sheet.append(f"<td{cls} style='background-color:{bg_color_s};'>{wrap_name(rd[sk], '')}</td>")
-                        h_sheet.append(f"<td style='font-weight:bold; background-color:{get_bg(rd[hk], hk)};'>{wrap_name(rd[hk], hk)}</td>")
-                        first_cell = False
+                    h_sheet.append(f"<td colspan='6' class='day-start' style='color: {c_color}; font-size: 12px; width: 13.68%;'>{weekdays_labels[d_o_w]} ({cur_d}日)</td>")
                 else:
-                    h_sheet.append("<td colspan='6' class='day-start' style='background-color: #fafafa; opacity:0.1;'></td>")
+                    h_sheet.append(f"<td colspan='6' class='day-start' style='color: #aaa; background-color: #fafafa; width: 13.68%;'>{weekdays_labels[d_o_w]} (外)</td>")
             h_sheet.append("</tr>")
-        h_sheet.append("</table>")
-        h_sheet.append("</div>")
-        
+
+            h_sheet.append("<tr style='background-color: #f9f9f9; font-size: 9px; height: 14px;'><td style='font-weight:bold; padding:0;'>-</td>")
+            for _ in range(7):
+                h_sheet.append("<td class='day-start' style='width:1.8%; padding:0;'>サ1</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ1</td>")
+                h_sheet.append("<td style='width:1.8%; padding:0;'>サ2</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ2</td>")
+                h_sheet.append("<td style='width:1.8%; padding:0;'>サ3</td><td style='font-weight:bold; width:2.1%; background:#fff3cd; padding:0;'>へ3</td>")
+            h_sheet.append("</tr>")
+
+            r_list = []
+            for hour in range(5, 24):
+                r_list.append((f"{hour}:00", True))
+                r_list.append((f"{hour}:30", False))
+
+            r_list.append(("24:00", True))
+            r_list.append(("0:30", False))
+
+            for idx, (t_str, is_even) in enumerate(r_list):
+                b_style = "border-bottom:1px solid #333;" if not is_even else "border-bottom:1px dashed #ccc;"
+                h_sheet.append(f"<tr style='{b_style}'><td class='time-col' style='background-color:#f2f2f2;'>{t_str}</td>")
+
+                for d_o_w in range(7):
+                    cur_d = start_d + d_o_w
+                    if 1 <= cur_d <= max_days:
+                        ds = calendar_data[cur_d]
+
+                        if t_str == "24:00":
+                            rd = ds[0]["row1"]
+                        elif t_str == "0:30":
+                            rd = ds[0]["row2"]
+                        else:
+                            h_num = int(t_str.split(":")[0])
+                            rd = ds[h_num]["row1" if t_str.endswith(":00") else "row2"]
+
+                        first_cell = True
+                        for sk, hk in [("s1", "h1"), ("s2", "h2"), ("s3", "h3")]:
+                            bg_color_s = rd.get(f"{sk}_color", "#ffffff")
+                            cls = " class='day-start'" if first_cell else ""
+                            h_sheet.append(f"<td{cls} style='background-color:{bg_color_s};'>{wrap_name(rd[sk], '')}</td>")
+                            h_sheet.append(f"<td style='font-weight:bold; background-color:{get_bg(rd[hk], hk)};'>{wrap_name(rd[hk], hk)}</td>")
+                            first_cell = False
+                    else:
+                        h_sheet.append("<td colspan='6' class='day-start' style='background-color: #fafafa; opacity:0.1;'></td>")
+                h_sheet.append("</tr>")
+            h_sheet.append("</table>")
+            h_sheet.append("</div>")  # /week-page
+
+        h_sheet.append("</div>")  # /print-target
+
         st.html(f"<div style='border: 1px solid #999; background-color: #ffffff; border-radius: 6px; padding: 5px;'>{''.join(h_sheet)}</div>")
 
     with view_mode[1]:
