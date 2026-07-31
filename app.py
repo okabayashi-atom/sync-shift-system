@@ -97,10 +97,25 @@ def read_weekly_excel_schedule(ws, calendar_data, target_year, target_month):
 # 📌 勤務表シート（1人1行・1日1列）を読み込む関数
 # ────────────────────────────────────────────────────────
 def read_duty_roster_schedule(ws, calendar_data, max_days):
+
+    def is_target_ishikawa(name):
+        # 「日勤」が同じ日に複数人と重複した際に除外する対象の石川(留=瑠)さんを判定。
+        # 石川(雅)・石川(靖)など、別表記の他の石川さんは対象外。
+        if not name:
+            return False
+        name = str(name).strip()
+        if "石川" not in name:
+            return False
+        if "瑠" in name or "留" in name:
+            return True
+        return name == "石川"  # 「(瑠)」等の表記がまだ付いていない月は「石川」単独をこの方とみなす
+
     for d_num in range(1, max_days + 1):
         target_col = 2 + (d_num - 1)
         if target_col > ws.max_column: break
 
+        # --- その日の全スタッフの入力内容を先に集計 ---
+        day_entries = []
         for r_idx in range(4, 15):
             cell_val = ws.cell(row=r_idx, column=target_col).value
             if cell_val:
@@ -109,54 +124,65 @@ def read_duty_roster_schedule(ws, calendar_data, max_days):
                 staff_name = ws.cell(row=r_idx, column=1).value
                 if not staff_name: continue
                 staff_name = str(staff_name).strip()
+                day_entries.append((staff_name, cell_str))
 
-                assigned_h = None
-                start_hour, start_min = None, 0
-                end_hour, end_min = None, 0
+        # --- 日勤(ヘルパー2)に複数人が重複したら、石川(留)を除外してもう片方を採用 ---
+        nichi_people = [name for (name, cell_str) in day_entries if "日" in cell_str]
+        excluded_names = set()
+        if len(nichi_people) > 1:
+            excluded_names = {name for name in nichi_people if is_target_ishikawa(name)}
 
-                is_ake = "明" in cell_str or "ｍ" in cell_str or "m" in cell_str
-                is_osor = "遅" in cell_str
-                is_haya = "早" in cell_str or "ｆ" in cell_str or "f" in cell_str
-                is_yoru = "夜" in cell_str or "mf" in cell_str
-                is_nichi = "日" in cell_str
+        for staff_name, cell_str in day_entries:
+            if staff_name in excluded_names and "日" in cell_str:
+                continue  # 日勤重複のため石川(留)を除外
 
-                if is_ake:
-                    assigned_h = "h3"
-                    start_hour, start_min = 5, 0
-                    end_hour, end_min = 8, 0
-                elif is_osor:
-                    assigned_h = "h3"
-                    start_hour, start_min = 10, 0
-                    end_hour, end_min = 18, 30
-                elif is_haya:
-                    assigned_h = "h1"
-                    start_hour, start_min = 7, 0
-                    end_hour, end_min = 15, 0
-                elif is_nichi:
-                    assigned_h = "h2"
-                    start_hour, start_min = 14, 0
-                    end_hour, end_min = 17, 0
-                elif is_yoru:
-                    assigned_h = "h1"
-                    start_hour, start_min = 17, 0
-                    end_hour, end_min = 23, 0
+            assigned_h = None
+            start_hour, start_min = None, 0
+            end_hour, end_min = None, 0
 
-                if assigned_h and start_hour is not None and end_hour is not None:
-                    current_time = datetime.datetime(2026, 1, 1, start_hour, start_min)
-                    end_time = datetime.datetime(2026, 1, 1, end_hour, end_min)
-                    if current_time >= end_time: continue
-                    time_slots = []
-                    while current_time <= end_time:
-                        time_slots.append((current_time.hour, current_time.minute))
-                        current_time += datetime.timedelta(minutes=30)
-                    for idx, (h, m) in enumerate(time_slots):
-                        row_key = "row1" if m == 0 else "row2"
-                        if idx == 0 or idx == len(time_slots) - 1:
-                            calendar_data[d_num][h][row_key][assigned_h] = staff_name
-                        else:
-                            current_val = calendar_data[d_num][h][row_key][assigned_h]
-                            if not current_val or current_val == "┃":
-                                calendar_data[d_num][h][row_key][assigned_h] = "┃"
+            is_ake = "明" in cell_str or "ｍ" in cell_str or "m" in cell_str
+            is_osor = "遅" in cell_str
+            is_haya = "早" in cell_str or "ｆ" in cell_str or "f" in cell_str
+            is_yoru = "夜" in cell_str or "mf" in cell_str
+            is_nichi = "日" in cell_str
+
+            if is_ake:
+                assigned_h = "h3"
+                start_hour, start_min = 5, 0
+                end_hour, end_min = 8, 0
+            elif is_osor:
+                assigned_h = "h3"
+                start_hour, start_min = 10, 0
+                end_hour, end_min = 18, 30
+            elif is_haya:
+                assigned_h = "h1"
+                start_hour, start_min = 7, 0
+                end_hour, end_min = 15, 0
+            elif is_nichi:
+                assigned_h = "h2"
+                start_hour, start_min = 14, 0
+                end_hour, end_min = 17, 0
+            elif is_yoru:
+                assigned_h = "h1"
+                start_hour, start_min = 17, 0
+                end_hour, end_min = 23, 30
+
+            if assigned_h and start_hour is not None and end_hour is not None:
+                current_time = datetime.datetime(2026, 1, 1, start_hour, start_min)
+                end_time = datetime.datetime(2026, 1, 1, end_hour, end_min)
+                if current_time >= end_time: continue
+                time_slots = []
+                while current_time <= end_time:
+                    time_slots.append((current_time.hour, current_time.minute))
+                    current_time += datetime.timedelta(minutes=30)
+                for idx, (h, m) in enumerate(time_slots):
+                    row_key = "row1" if m == 0 else "row2"
+                    if idx == 0 or idx == len(time_slots) - 1:
+                        calendar_data[d_num][h][row_key][assigned_h] = staff_name
+                    else:
+                        current_val = calendar_data[d_num][h][row_key][assigned_h]
+                        if not current_val or current_val == "┃":
+                            calendar_data[d_num][h][row_key][assigned_h] = "┃"
 
 # ────────────────────────────────────────────────────────
 # 🖨️ UI・デザイン用CSS
