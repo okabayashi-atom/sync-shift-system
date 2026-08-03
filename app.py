@@ -455,8 +455,8 @@ if weekly_file is not None or duty_file is not None:
         .week-page:last-child { page-break-after:auto; break-after:auto; }
         @page { size:A3 landscape; margin:5mm; }
         .week-print-table { border:3px solid #000 !important; }
-        .week-print-table th, .week-print-table td { font-size:9px !important; padding:0 !important; height:3.8mm !important; line-height:1.0 !important; border:1px solid #000 !important; }
-        .week-print-table .staff-name-box { font-size:9px !important; line-height:1.0 !important; }
+        .week-print-table th, .week-print-table td { font-size:10.5px !important; padding:1px !important; height:5.2mm !important; line-height:1.05 !important; border:1px solid #000 !important; }
+        .week-print-table .staff-name-box { font-size:10.5px !important; line-height:1.05 !important; }
         .week-print-table td.day-start, .week-print-table th.day-start { border-left:3px solid #000 !important; }
       }
     </style></head><body>
