@@ -3,6 +3,7 @@ import openpyxl
 import datetime
 import re
 import os
+import html
 
 # システム環境設定（不具合防止）
 os.environ["STREAMLIT_SERVER_HEADLESS"] = "true"
@@ -332,8 +333,17 @@ def get_bg(val, h_type):
 def wrap_name(val, h_type):
     if not val: return ""
     if val in ["┃", "｜", "↓", "〃"]: return str(val)
-    cleaned_val = str(val).replace("（", "(").replace("）", ")")
-    return f"<span class='staff-name-box'>{cleaned_val}</span>"
+    value = str(val).replace("（", "(").replace("）", ")")
+    kind = "helper" if h_type else "service"
+    # 編集用のボタンは名前のすぐ横に置く。実際の選択メニューは下の
+    # HTML コンポーネント内の JavaScript が必要なときだけ開く。
+    return (
+        f"<span class='staff-name-box editable-name' data-kind='{kind}' "
+        f"data-original='{html.escape(value, quote=True)}'>"
+        f"<span class='editable-label'>{html.escape(value)}</span>"
+        "<button type='button' class='picker-toggle' aria-label='この欄を変更'>▼</button>"
+        "</span>"
+    )
 
 def get_era_label(year, month):
     reiwa_year = year - 2018
@@ -343,98 +353,10 @@ def get_era_label(year, month):
 era_label = get_era_label(target_year, target_month)
 
 if weekly_file is not None or duty_file is not None:
-    # 表示中の予定を直接調整するための小さな編集パネル。
-    # 印刷用の表そのものは HTML なので、ここで calendar_data を更新してから
-    # 下の表を描画することで、画面表示と印刷結果を常に同じ内容にする。
-    name_candidates = set()
-    service_codes = set("bcefhmsw")
-    for day_data in calendar_data.values():
-        for hour_data in day_data.values():
-            for row_data in hour_data.values():
-                for cell_key in ("s1", "h1", "s2", "h2", "s3", "h3"):
-                    value = str(row_data.get(cell_key, "")).strip()
-                    if value and value not in {"┃", "｜", "↓", "〃"}:
-                        # サービス記号（例: 山田 bc）は候補名から外す。
-                        base_name = re.sub(r"\\s*[bcefhmsw]{1,2}$", "", value, flags=re.IGNORECASE).strip()
-                        name_candidates.add(base_name or value)
-    person_options = [""] + sorted(name_candidates) + ["〃"]
-    service_colours = {"白": "#ffffff", "黄": "#ffff00", "ピンク": "#ffc0cb"}
-    colour_labels = {value: label for label, value in service_colours.items()}
-
-    def slot_ref(time_label):
-        if time_label == "24:00":
-            return 0, "row1"
-        if time_label == "0:30":
-            return 0, "row2"
-        hour, minute = map(int, time_label.split(":"))
-        return hour, "row1" if minute == 0 else "row2"
-
-    time_options = [f"{hour}:{minute:02d}" for hour in range(5, 24) for minute in (0, 30)] + ["24:00", "0:30"]
-    with st.expander("週間表示を編集", expanded=False):
-        st.caption("サービス利用者は名前・記号（1つ目は必須）・色を選べます。ヘルパーは開始時刻の名前を変えると、その勤務枠の最後にも同じ名前を入れます。")
-        pick_col1, pick_col2 = st.columns(2)
-        with pick_col1:
-            edit_day = st.selectbox("日付", list(range(1, max_days + 1)), key="edit_day")
-        with pick_col2:
-            edit_time = st.selectbox("開始時刻", time_options, key="edit_time")
-
-        edit_hour, edit_row = slot_ref(edit_time)
-        edit_cells = calendar_data[edit_day][edit_hour][edit_row]
-        for service_key, helper_key, label in (("s1", "h1", "1"), ("s2", "h2", "2"), ("s3", "h3", "3")):
-            service_col, helper_col = st.columns(2)
-            with service_col:
-                current_service = str(edit_cells.get(service_key, ""))
-                current_base = re.sub(r"\\s*[bcefhmsw]{1,2}$", "", current_service, flags=re.IGNORECASE).strip()
-                if current_base not in person_options:
-                    person_options.append(current_base)
-                selected_person = st.selectbox(f"サービス {label}：名前", person_options, index=person_options.index(current_base), key=f"{edit_day}_{edit_time}_{service_key}_name")
-                code_col1, code_col2, colour_col = st.columns(3)
-                current_letters = re.findall(r"[bcefhmsw]", current_service.lower())[-2:]
-                with code_col1:
-                    code1 = st.selectbox("記号 1", ["b", "c", "e", "f", "h", "m", "s", "w"], index=["b", "c", "e", "f", "h", "m", "s", "w"].index(current_letters[0]) if current_letters else 0, key=f"{edit_day}_{edit_time}_{service_key}_code1")
-                with code_col2:
-                    code2 = st.selectbox("記号 2（任意）", ["なし", "b", "c", "e", "f", "h", "m", "s", "w"], index=(["なし", "b", "c", "e", "f", "h", "m", "s", "w"].index(current_letters[1]) if len(current_letters) > 1 else 0), key=f"{edit_day}_{edit_time}_{service_key}_code2")
-                with colour_col:
-                    current_colour = edit_cells.get(f"{service_key}_color", "#ffffff").lower()
-                    colour = st.selectbox("色", list(service_colours), index=list(service_colours).index(colour_labels.get(current_colour, "白")), key=f"{edit_day}_{edit_time}_{service_key}_colour")
-                if selected_person == "〃":
-                    edit_cells[service_key] = "〃"
-                elif selected_person:
-                    edit_cells[service_key] = f"{selected_person} {code1}{'' if code2 == 'なし' else code2}"
-                else:
-                    edit_cells[service_key] = ""
-                edit_cells[f"{service_key}_color"] = service_colours[colour]
-            with helper_col:
-                current_helper = str(edit_cells.get(helper_key, ""))
-                if current_helper not in person_options:
-                    person_options.append(current_helper)
-                selected_helper = st.selectbox(f"ヘルパー {label}：名前", person_options, index=person_options.index(current_helper), key=f"{edit_day}_{edit_time}_{helper_key}_name")
-                # 固定時間の勤務枠を、開始セルから次の空欄まで追跡する。
-                # 途中の「〃」は残し、開始と最終セルの表示名だけを揃える。
-                slot_sequence = [slot_ref(t) for t in time_options]
-                start_index = slot_sequence.index((edit_hour, edit_row))
-                end_index = start_index
-                old_helper = current_helper
-                for index in range(start_index + 1, len(slot_sequence)):
-                    next_hour, next_row = slot_sequence[index]
-                    next_value = str(calendar_data[edit_day][next_hour][next_row].get(helper_key, ""))
-                    if next_value in {"〃", old_helper}:
-                        end_index = index
-                    else:
-                        break
-                edit_cells[helper_key] = selected_helper
-                if end_index > start_index:
-                    end_hour, end_row = slot_sequence[end_index]
-                    calendar_data[edit_day][end_hour][end_row][helper_key] = selected_helper
-
     weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
     total_weeks = (start_offset + max_days + 6) // 7  # 月内の全日数をカバーするのに必要な週数
 
-    st.components.v1.html(f"""
-        <button onclick="parent.window.print();" style="width:100%; height:45px; background-color:#e67e22; color:white; border:none; border-radius:4px; cursor:pointer; font-size:15px; font-weight:bold;">🖨️ 全{total_weeks}週分を印刷（週ごとに自動改ページ）</button>
-    """, height=50)
-    st.caption(f"📄 {era_label} の全{total_weeks}週分をまとめて表示しています。印刷すると1週間＝1ページで自動的に分かれて出力されます。")
-    st.write("---")
+    st.caption("名前の横の ▼ を押すと、その場で変更できます。サービス欄では記号・色も指定でき、〃も選べます。変更後は上部の印刷ボタンから印刷してください。")
 
     h_sheet = []
     h_sheet.append("<div class='print-target'>")
@@ -505,6 +427,109 @@ if weekly_file is not None or duty_file is not None:
 
     h_sheet.append("</div>")  # /print-target
 
-    st.html(f"<div style='border: 1px solid #999; background-color: #ffffff; border-radius: 6px; padding: 5px;'>{''.join(h_sheet)}</div>")
+    # JavaScript を使うため、表全体を独立したコンポーネントとして描画する。
+    # これにより、セル横の ▼ がそのセル専用の編集メニューを開ける。
+    component_html = """
+    <!doctype html><html lang="ja"><head><meta charset="utf-8">
+    <style>
+      body { margin: 0; padding: 6px; font-family: sans-serif; background: #fff; }
+      .toolbar { position: sticky; top: 0; z-index: 5; text-align: right; padding: 0 0 6px; background: #fff; }
+      .print-button { background:#e67e22; color:white; border:0; border-radius:4px; padding:9px 18px; cursor:pointer; font-size:14px; font-weight:bold; }
+      .calendar-table { table-layout:fixed; width:100%; border-collapse:collapse; }
+      .calendar-table td { vertical-align:middle; padding:4px 1px; }
+      .staff-name-box { display:block; word-break:break-all; font-size:11px; text-align:center; line-height:1.1; }
+      .picker-toggle { font-size:8px; padding:0 2px; margin-left:2px; border:0; background:#e8edf3; color:#334; border-radius:2px; cursor:pointer; vertical-align:middle; }
+      .picker-toggle:hover { background:#cdd9e8; }
+      .picker-popover { position:fixed; z-index:10; min-width:210px; padding:10px; background:white; border:1px solid #708090; border-radius:6px; box-shadow:0 3px 12px #5558; font-size:13px; text-align:left; }
+      .picker-popover label { display:block; margin:5px 0 2px; font-weight:bold; }
+      .picker-popover select { width:100%; height:28px; }
+      .picker-actions { display:flex; gap:6px; margin-top:9px; }
+      .picker-actions button { flex:1; padding:5px; cursor:pointer; }
+      .picker-actions .apply { background:#1976d2; color:white; border:0; border-radius:3px; }
+      @media print {
+        .toolbar, .picker-toggle, .picker-popover { display:none !important; }
+        body { padding:0; }
+        .week-page { page-break-after:always; break-after:page; page-break-inside:avoid; }
+        .week-page:last-child { page-break-after:auto; break-after:auto; }
+        @page { size:A3 landscape; margin:8mm; }
+        .week-print-table { border:3px solid #000 !important; }
+        .week-print-table th, .week-print-table td { font-size:10.5px !important; padding:1px !important; height:20px !important; line-height:1.05 !important; border:1px solid #000 !important; }
+        .week-print-table td.day-start, .week-print-table th.day-start { border-left:3px solid #000 !important; }
+      }
+    </style></head><body>
+    <div class="toolbar"><button class="print-button" onclick="window.print()">🖨️ 変更内容を印刷</button></div>
+    """ + "".join(h_sheet) + """
+    <script>
+    (() => {
+      const serviceCodes = ['b','c','e','f','h','m','s','w'];
+      const colours = { '白':'#ffffff', '黄':'#ffff00', 'ピンク':'#ffc0cb' };
+      let menu;
+      const baseName = (text, kind) => kind === 'service'
+        ? text.replace(/\\s+[bcefhmsw]{1,2}$/i, '').trim() : text.trim();
+      const people = () => [...new Set([...document.querySelectorAll('.editable-name')]
+        .map(item => baseName(item.querySelector('.editable-label').textContent, item.dataset.kind))
+        .filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ja'));
+      const closeMenu = () => { if (menu) { menu.remove(); menu = null; } };
+      const makeSelect = (values, selected) => {
+        const select = document.createElement('select');
+        values.forEach(value => { const option = new Option(value || '（空欄）', value); option.selected = value === selected; select.add(option); });
+        return select;
+      };
+      const addField = (box, label, control) => {
+        const fieldLabel = document.createElement('label'); fieldLabel.textContent = label;
+        box.append(fieldLabel, control);
+      };
+      const syncHelperEnd = (cell, oldValue, newValue) => {
+        let last = null, row = cell.parentElement, index = cell.cellIndex;
+        while ((row = row.nextElementSibling)) {
+          const candidate = row.cells[index];
+          if (!candidate) break;
+          const text = candidate.innerText.trim();
+          if (text === '〃' || text === oldValue) { last = candidate; continue; }
+          break;
+        }
+        const endLabel = last && last.querySelector('.editable-label');
+        if (endLabel) endLabel.textContent = newValue;
+      };
+      document.addEventListener('click', event => {
+        const button = event.target.closest('.picker-toggle');
+        if (!button) { if (!event.target.closest('.picker-popover')) closeMenu(); return; }
+        event.stopPropagation(); closeMenu();
+        const host = button.closest('.editable-name');
+        const cell = host.closest('td');
+        const kind = host.dataset.kind;
+        const oldValue = host.querySelector('.editable-label').textContent.trim();
+        const currentName = baseName(oldValue, kind);
+        const letters = kind === 'service' ? (oldValue.match(/[bcefhmsw]/ig) || []).slice(-2).map(x => x.toLowerCase()) : [];
+        menu = document.createElement('div'); menu.className = 'picker-popover';
+        const name = makeSelect(['', ...people(), '〃'], currentName);
+        addField(menu, '名前', name);
+        let code1, code2, colour;
+        if (kind === 'service') {
+          code1 = makeSelect(serviceCodes, letters[0] || 'b');
+          code2 = makeSelect(['なし', ...serviceCodes], letters[1] || 'なし');
+          colour = makeSelect(Object.keys(colours), '白');
+          addField(menu, '記号 1', code1); addField(menu, '記号 2（任意）', code2); addField(menu, '色', colour);
+        }
+        const actions = document.createElement('div'); actions.className = 'picker-actions';
+        const cancel = document.createElement('button'); cancel.textContent = '閉じる'; cancel.onclick = closeMenu;
+        const apply = document.createElement('button'); apply.className = 'apply'; apply.textContent = '反映';
+        apply.onclick = () => {
+          let value = name.value;
+          if (value && value !== '〃' && kind === 'service') value += ' ' + code1.value + (code2.value === 'なし' ? '' : code2.value);
+          host.querySelector('.editable-label').textContent = value;
+          if (kind === 'service') cell.style.backgroundColor = colours[colour.value];
+          if (kind === 'helper') syncHelperEnd(cell, oldValue, value);
+          closeMenu();
+        };
+        actions.append(cancel, apply); menu.append(actions); document.body.append(menu);
+        const rect = button.getBoundingClientRect();
+        menu.style.left = Math.min(rect.left, window.innerWidth - 225) + 'px';
+        menu.style.top = Math.min(rect.bottom + 4, window.innerHeight - 260) + 'px';
+      });
+    })();
+    </script></body></html>
+    """
+    st.components.v1.html(component_html, height=max(1000, total_weeks * 920), scrolling=True)
 else:
     st.info("💡 上部のメニューから、解析元のシフトExcelファイルをアップロードしてください。「週間予定表」と「勤務表」両方を入れると合算されて表示されます。")
