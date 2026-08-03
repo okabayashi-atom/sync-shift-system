@@ -343,6 +343,90 @@ def get_era_label(year, month):
 era_label = get_era_label(target_year, target_month)
 
 if weekly_file is not None or duty_file is not None:
+    # 表示中の予定を直接調整するための小さな編集パネル。
+    # 印刷用の表そのものは HTML なので、ここで calendar_data を更新してから
+    # 下の表を描画することで、画面表示と印刷結果を常に同じ内容にする。
+    name_candidates = set()
+    service_codes = set("bcefhmsw")
+    for day_data in calendar_data.values():
+        for hour_data in day_data.values():
+            for row_data in hour_data.values():
+                for cell_key in ("s1", "h1", "s2", "h2", "s3", "h3"):
+                    value = str(row_data.get(cell_key, "")).strip()
+                    if value and value not in {"┃", "｜", "↓", "〃"}:
+                        # サービス記号（例: 山田 bc）は候補名から外す。
+                        base_name = re.sub(r"\\s*[bcefhmsw]{1,2}$", "", value, flags=re.IGNORECASE).strip()
+                        name_candidates.add(base_name or value)
+    person_options = [""] + sorted(name_candidates) + ["〃"]
+    service_colours = {"白": "#ffffff", "黄": "#ffff00", "ピンク": "#ffc0cb"}
+    colour_labels = {value: label for label, value in service_colours.items()}
+
+    def slot_ref(time_label):
+        if time_label == "24:00":
+            return 0, "row1"
+        if time_label == "0:30":
+            return 0, "row2"
+        hour, minute = map(int, time_label.split(":"))
+        return hour, "row1" if minute == 0 else "row2"
+
+    time_options = [f"{hour}:{minute:02d}" for hour in range(5, 24) for minute in (0, 30)] + ["24:00", "0:30"]
+    with st.expander("週間表示を編集", expanded=False):
+        st.caption("サービス利用者は名前・記号（1つ目は必須）・色を選べます。ヘルパーは開始時刻の名前を変えると、その勤務枠の最後にも同じ名前を入れます。")
+        pick_col1, pick_col2 = st.columns(2)
+        with pick_col1:
+            edit_day = st.selectbox("日付", list(range(1, max_days + 1)), key="edit_day")
+        with pick_col2:
+            edit_time = st.selectbox("開始時刻", time_options, key="edit_time")
+
+        edit_hour, edit_row = slot_ref(edit_time)
+        edit_cells = calendar_data[edit_day][edit_hour][edit_row]
+        for service_key, helper_key, label in (("s1", "h1", "1"), ("s2", "h2", "2"), ("s3", "h3", "3")):
+            service_col, helper_col = st.columns(2)
+            with service_col:
+                current_service = str(edit_cells.get(service_key, ""))
+                current_base = re.sub(r"\\s*[bcefhmsw]{1,2}$", "", current_service, flags=re.IGNORECASE).strip()
+                if current_base not in person_options:
+                    person_options.append(current_base)
+                selected_person = st.selectbox(f"サービス {label}：名前", person_options, index=person_options.index(current_base), key=f"{edit_day}_{edit_time}_{service_key}_name")
+                code_col1, code_col2, colour_col = st.columns(3)
+                current_letters = re.findall(r"[bcefhmsw]", current_service.lower())[-2:]
+                with code_col1:
+                    code1 = st.selectbox("記号 1", ["b", "c", "e", "f", "h", "m", "s", "w"], index=["b", "c", "e", "f", "h", "m", "s", "w"].index(current_letters[0]) if current_letters else 0, key=f"{edit_day}_{edit_time}_{service_key}_code1")
+                with code_col2:
+                    code2 = st.selectbox("記号 2（任意）", ["なし", "b", "c", "e", "f", "h", "m", "s", "w"], index=(["なし", "b", "c", "e", "f", "h", "m", "s", "w"].index(current_letters[1]) if len(current_letters) > 1 else 0), key=f"{edit_day}_{edit_time}_{service_key}_code2")
+                with colour_col:
+                    current_colour = edit_cells.get(f"{service_key}_color", "#ffffff").lower()
+                    colour = st.selectbox("色", list(service_colours), index=list(service_colours).index(colour_labels.get(current_colour, "白")), key=f"{edit_day}_{edit_time}_{service_key}_colour")
+                if selected_person == "〃":
+                    edit_cells[service_key] = "〃"
+                elif selected_person:
+                    edit_cells[service_key] = f"{selected_person} {code1}{'' if code2 == 'なし' else code2}"
+                else:
+                    edit_cells[service_key] = ""
+                edit_cells[f"{service_key}_color"] = service_colours[colour]
+            with helper_col:
+                current_helper = str(edit_cells.get(helper_key, ""))
+                if current_helper not in person_options:
+                    person_options.append(current_helper)
+                selected_helper = st.selectbox(f"ヘルパー {label}：名前", person_options, index=person_options.index(current_helper), key=f"{edit_day}_{edit_time}_{helper_key}_name")
+                # 固定時間の勤務枠を、開始セルから次の空欄まで追跡する。
+                # 途中の「〃」は残し、開始と最終セルの表示名だけを揃える。
+                slot_sequence = [slot_ref(t) for t in time_options]
+                start_index = slot_sequence.index((edit_hour, edit_row))
+                end_index = start_index
+                old_helper = current_helper
+                for index in range(start_index + 1, len(slot_sequence)):
+                    next_hour, next_row = slot_sequence[index]
+                    next_value = str(calendar_data[edit_day][next_hour][next_row].get(helper_key, ""))
+                    if next_value in {"〃", old_helper}:
+                        end_index = index
+                    else:
+                        break
+                edit_cells[helper_key] = selected_helper
+                if end_index > start_index:
+                    end_hour, end_row = slot_sequence[end_index]
+                    calendar_data[edit_day][end_hour][end_row][helper_key] = selected_helper
+
     weekdays_labels = ["日", "月", "火", "水", "木", "金", "土"]
     total_weeks = (start_offset + max_days + 6) // 7  # 月内の全日数をカバーするのに必要な週数
 
