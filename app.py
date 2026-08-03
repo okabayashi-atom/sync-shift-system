@@ -449,11 +449,14 @@ if weekly_file is not None or duty_file is not None:
       @media print {
         .toolbar, .picker-toggle, .picker-popover { display:none !important; }
         body { padding:0; }
-        .week-page { page-break-after:always; break-after:page; page-break-inside:avoid; }
+        /* A3横1枚に必ず1週間を収める。ブラウザごとの行高の丸め誤差で
+           最終行だけが次ページに送られるのを防ぐ。 */
+        .week-page { height:281mm; overflow:hidden; margin:0 !important; page-break-after:always; break-after:page; page-break-inside:avoid; }
         .week-page:last-child { page-break-after:auto; break-after:auto; }
-        @page { size:A3 landscape; margin:8mm; }
+        @page { size:A3 landscape; margin:5mm; }
         .week-print-table { border:3px solid #000 !important; }
-        .week-print-table th, .week-print-table td { font-size:10.5px !important; padding:1px !important; height:20px !important; line-height:1.05 !important; border:1px solid #000 !important; }
+        .week-print-table th, .week-print-table td { font-size:9px !important; padding:0 !important; height:3.8mm !important; line-height:1.0 !important; border:1px solid #000 !important; }
+        .week-print-table .staff-name-box { font-size:9px !important; line-height:1.0 !important; }
         .week-print-table td.day-start, .week-print-table th.day-start { border-left:3px solid #000 !important; }
       }
     </style></head><body>
@@ -530,6 +533,7 @@ if weekly_file is not None or duty_file is not None:
     })();
     </script></body></html>
     """
-    st.components.v1.html(component_html, height=max(1000, total_weeks * 920), scrolling=True)
+    # 画面上のプレビューも週末が途切れない高さを確保する。
+    st.components.v1.html(component_html, height=max(1100, total_weeks * 1100), scrolling=True)
 else:
     st.info("💡 上部のメニューから、解析元のシフトExcelファイルをアップロードしてください。「週間予定表」と「勤務表」両方を入れると合算されて表示されます。")
